@@ -95,7 +95,7 @@ if (version_compare(Configure::version(), '3.4.13', '>=')) {
 } else {
     $sqliteUrl = 'sqlite:\\' . TMP . 'example.sq3';
 }
-ConnectionManager::config('test', ['url' => 'mysql://travis@localhost/test']);
+ConnectionManager::config('test', ['url' => 'mysql://root@localhost/test']);
 ConnectionManager::config('test_sqlite', ['url' => $sqliteUrl]);
 ConnectionManager::config('test_postgres', ['url' => 'postgres://postgres@localhost/travis_ci_test']);
 
