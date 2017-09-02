@@ -13,7 +13,6 @@
 namespace DatabaseBackup\Test\TestCase\Utility;
 
 use Cake\Core\Configure;
-use Cake\TestSuite\EmailAssertTrait;
 use DatabaseBackup\TestSuite\TestCase;
 use DatabaseBackup\Utility\BackupExport;
 use DatabaseBackup\Utility\BackupManager;
@@ -24,7 +23,6 @@ use Reflection\ReflectionTrait;
  */
 class BackupManagerTest extends TestCase
 {
-    use EmailAssertTrait;
     use ReflectionTrait;
 
     /**
@@ -202,13 +200,14 @@ class BackupManagerTest extends TestCase
         $this->_email = $this->invokeMethod($instance, 'getEmailInstance', [$file, $to]);
         $this->assertInstanceof('Cake\Mailer\Email', $this->_email);
 
-        $this->assertEmailFrom(Configure::read(DATABASE_BACKUP . '.mailSender'));
-        $this->assertEmailTo($to);
-        $this->assertEmailSubject('Database backup ' . basename($file) . ' from localhost');
-        $this->assertEmailAttachmentsContains(basename($file), [
+        $sender = [Configure::read(DATABASE_BACKUP . '.mailSender') => Configure::read(DATABASE_BACKUP . '.mailSender')];
+        $this->assertEquals($sender, $this->_email->from());
+        $this->assertEquals([$to => $to], $this->_email->to());
+        $this->assertEquals('Database backup ' . basename($file) . ' from localhost', $this->_email->subject());
+        $this->assertEquals([basename($file) => [
             'file' => $file,
             'mimetype' => mime_content_type($file),
-        ]);
+        ]], $this->_email->attachments());
 
         $send = $this->BackupManager->send($file, $to);
         $this->assertNotEmpty($send);

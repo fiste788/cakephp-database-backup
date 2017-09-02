@@ -36,8 +36,8 @@ class SqliteTest extends DriverTestCase
      * @var array
      */
     public $fixtures = [
-        'plugin.database_backup.Sqlite/Articles',
-        'plugin.database_backup.Sqlite/Comments',
+        'plugin.database_backup.Sqlite\Articles',
+        'plugin.database_backup.Sqlite\Comments',
     ];
 
     /**

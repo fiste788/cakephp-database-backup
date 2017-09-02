@@ -116,7 +116,7 @@ trait BackupTrait
             $connection = $this->getConnection();
         }
 
-        $className = $this->getClassShortName($connection->getDriver());
+        $className = $this->getClassShortName($connection->driver());
         $driver = App::classname(DATABASE_BACKUP . '.' . $className, 'Driver');
 
         if (!$driver) {

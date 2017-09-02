@@ -13,8 +13,15 @@ Currently, the plugin supports *MySql*, *Postgres* and *Sqlite* databases.
 You can install the plugin via composer:
 
     $ composer require --prefer-dist mirko-pagliai/cakephp-database-backup
+
+**NOTE**: the package may require one of the latest versions version of CakePHP.  
+Instead, the [cakephp3.2](//github.com/mirko-pagliai/cakephp-database-backup/tree/cakephp3.2)
+branch is compatible with CakePHP versions from 3.2 onwards.  
+In this case, you can install the package as well:
+
+    $ composer require --prefer-dist mirko-pagliai/cakephp-database-backup:dev-cakephp3.2
     
-Then you have to edit `APP/config/bootstrap.php` to load the plugin:
+After installation, you have to edit `APP/config/bootstrap.php` to load the plugin:
 
     Plugin::load('DatabaseBackup', ['bootstrap' => true]);
 

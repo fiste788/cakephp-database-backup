@@ -282,7 +282,7 @@ class BackupShell extends Shell
     {
         $parser = parent::getOptionParser();
 
-        $parser->setDescription(__d('database_backup', 'Shell to handle database backups'));
+        $parser->description(__d('database_backup', 'Shell to handle database backups'));
 
         $parser->addSubcommand('deleteAll', ['help' => __d('database_backup', 'Deletes all database backups')]);
 

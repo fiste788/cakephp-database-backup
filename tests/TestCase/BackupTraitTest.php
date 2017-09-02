@@ -110,7 +110,7 @@ class BackupTraitTest extends TestCase
      */
     public function testGetConnection()
     {
-        ConnectionManager::setConfig('fake', ['url' => 'mysql://root:password@localhost/my_database']);
+        ConnectionManager::config('fake', ['url' => 'mysql://root:password@localhost/my_database']);
 
         foreach ([
             null,
@@ -119,7 +119,7 @@ class BackupTraitTest extends TestCase
         ] as $name) {
             $connection = $this->getConnection($name);
             $this->assertInstanceof('Cake\Database\Connection', $connection);
-            $this->assertInstanceof('Cake\Database\Driver\Mysql', $connection->getDriver());
+            $this->assertInstanceof('Cake\Database\Driver\Mysql', $connection->driver());
         }
     }
 
@@ -174,11 +174,11 @@ class BackupTraitTest extends TestCase
     public function testGetDriverNoExistingDriver()
     {
         $connection = $this->getMockBuilder(get_class($this->getConnection()))
-            ->setMethods(['getDriver'])
+            ->setMethods(['driver'])
             ->setConstructorArgs([$this->getConnection()->config()])
             ->getMock();
 
-        $connection->method('getDriver')
+        $connection->method('driver')
              ->will($this->returnValue(new \stdClass()));
 
         $this->getDriver($connection);

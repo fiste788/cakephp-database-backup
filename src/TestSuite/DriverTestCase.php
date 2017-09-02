@@ -62,6 +62,7 @@ abstract class DriverTestCase extends TestCase
 
         $connection = $this->getConnection();
 
+        TableRegistry::clear();
         $this->Articles = TableRegistry::get('Articles', compact('connection'));
         $this->Comments = TableRegistry::get('Comments', compact('connection'));
 
@@ -87,7 +88,7 @@ abstract class DriverTestCase extends TestCase
     final protected function allRecords()
     {
         foreach (['Articles', 'Comments'] as $name) {
-            $records[$name] = $this->$name->find()->enableHydration(false)->toArray();
+            $records[$name] = $this->$name->find()->hydrate(false)->toArray();
         }
 
         return $records;

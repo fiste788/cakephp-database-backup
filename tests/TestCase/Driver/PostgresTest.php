@@ -36,8 +36,8 @@ class PostgresTest extends DriverTestCase
      * @var array
      */
     public $fixtures = [
-        'plugin.database_backup.Postgres/Articles',
-        'plugin.database_backup.Postgres/Comments',
+        'plugin.database_backup.Postgres\Articles',
+        'plugin.database_backup.Postgres\Comments',
     ];
 
     /**

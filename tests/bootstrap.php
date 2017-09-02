@@ -72,7 +72,7 @@ Configure::write('App', [
     ]
 ]);
 
-Cache::setConfig([
+Cache::config([
     '_cake_core_' => [
         'engine' => 'File',
         'prefix' => 'cake_core_',
@@ -90,9 +90,14 @@ Cache::setConfig([
     ],
 ]);
 
-ConnectionManager::setConfig('test', ['url' => 'mysql://travis@localhost/test']);
-ConnectionManager::setConfig('test_sqlite', ['url' => 'sqlite:\\' . TMP . 'example.sq3']);
-ConnectionManager::setConfig('test_postgres', ['url' => 'postgres://postgres@localhost/travis_ci_test']);
+if (version_compare(Configure::version(), '3.4.13', '>=')) {
+    $sqliteUrl = 'sqlite:///' . TMP . 'example.sq3';
+} else {
+    $sqliteUrl = 'sqlite:\\' . TMP . 'example.sq3';
+}
+ConnectionManager::config('test', ['url' => 'mysql://travis@localhost/test']);
+ConnectionManager::config('test_sqlite', ['url' => $sqliteUrl]);
+ConnectionManager::config('test_postgres', ['url' => 'postgres://postgres@localhost/travis_ci_test']);
 
 Configure::write('DatabaseBackup.connection', 'test');
 Configure::write('DatabaseBackup.target', TMP . 'backups');
@@ -114,7 +119,7 @@ Log::config('debug', [
 DispatcherFactory::add('Routing');
 DispatcherFactory::add('ControllerFactory');
 
-Email::setConfigTransport('debug', ['className' => 'Debug']);
-Email::setConfig('default', ['transport' => 'debug', 'log' => true]);
+Email::configTransport('debug', ['className' => 'Debug']);
+Email::config('default', ['transport' => 'debug', 'log' => true]);
 
 ini_set('intl.default_locale', 'en_US');

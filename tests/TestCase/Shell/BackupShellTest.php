@@ -86,11 +86,8 @@ class BackupShellTest extends TestCase
     {
         $this->invokeMethod($this->BackupShell, '_welcome');
 
-        $messages = $this->out->messages();
-
-        $this->assertRegExp('/^Connection: test/', $messages[6]);
-        $this->assertEquals('Driver: Mysql', $messages[7]);
-        $this->assertRegExp('/^\-+$/', $messages[8]);
+        $this->assertContains('Connection: test', $this->out->messages());
+        $this->assertContains('Driver: Mysql', $this->out->messages());
     }
 
     /**
@@ -155,7 +152,8 @@ class BackupShellTest extends TestCase
 
         $output = $this->out->messages();
 
-        $this->assertEquals(8, count($output));
+        $this->assertGreaterThanOrEqual(8, count($output));
+        $this->assertLessThanOrEqual(9, count($output));
 
         $this->assertRegExp(
             '/^\<success\>Backup `\/tmp\/backups\/backup_test_[0-9]{14}\.sql` has been exported\<\/success\>$/',
@@ -176,6 +174,11 @@ class BackupShellTest extends TestCase
             '/^\<success\>Backup `\/tmp\/backups\/backup_test_[0-9]{14}\.sql` has been exported\<\/success\>$/',
             next($output)
         );
+
+        if (count($output) === 9) {
+            $this->assertStringStartsWith('<debug>', next($output));
+        }
+
         $this->assertRegExp(
             '/^\<success\>Backup `\/tmp\/backups\/backup_test_[0-9]{14}\.sql` was sent via mail\<\/success\>$/',
             next($output)
@@ -343,9 +346,15 @@ class BackupShellTest extends TestCase
 
         $this->BackupShell->send($file, 'recipient@example.com');
 
-        $this->assertEquals([
+        $output = $this->out->messages();
+
+        $this->assertGreaterThanOrEqual(1, count($output));
+        $this->assertLessThanOrEqual(2, count($output));
+
+        $this->assertEquals(
             '<success>Backup `/tmp/backups/backup.sql` was sent via mail</success>',
-        ], $this->out->messages());
+            collection($output)->last()
+        );
         $this->assertEmpty($this->err->messages());
     }
 
@@ -370,19 +379,26 @@ class BackupShellTest extends TestCase
         $parser = $this->BackupShell->getOptionParser();
 
         $this->assertInstanceOf('Cake\Console\ConsoleOptionParser', $parser);
-        $this->assertEquals([
-            'deleteAll',
+
+        $subCommands = [
+            'delete_all',
             'export',
             'import',
             'index',
             'rotate',
             'send',
-        ], array_keys($parser->subcommands()));
+        ];
+
+        if (version_compare(Configure::version(), '3.5', '<')) {
+            $subCommands = array_replace($subCommands, [0 => 'deleteAll']);
+        }
+
+        $this->assertEquals($subCommands, array_keys($parser->subcommands()));
 
         //Checks "compression" options for the "export" subcommand
         $this->assertEquals('[-c bzip2|gzip]', $parser->subcommands()['export']->parser()->options()['compression']->usage());
 
-        $this->assertEquals('Shell to handle database backups', $parser->getDescription());
+        $this->assertEquals('Shell to handle database backups', $parser->description());
         $this->assertEquals(['help', 'quiet', 'verbose'], array_keys($parser->options()));
     }
 }
