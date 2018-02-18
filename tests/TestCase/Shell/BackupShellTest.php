@@ -120,6 +120,8 @@ class BackupShellTest extends TestCase
      */
     public function testExport()
     {
+        $target = preg_quote(Configure::read(DATABASE_BACKUP . '.target') . DS, '/');
+
         //Exports, without params
         $this->BackupShell->export();
 
@@ -156,22 +158,25 @@ class BackupShellTest extends TestCase
         $this->assertLessThanOrEqual(9, count($output));
 
         $this->assertRegExp(
-            '/^\<success\>Backup `\/tmp\/backups\/backup_test_[0-9]{14}\.sql` has been exported\<\/success\>$/',
+            '/^\<success\>Backup `' . $target . 'backup_test_[0-9]{14}\.sql` has been exported\<\/success\>$/',
             current($output)
         );
         $this->assertRegExp(
-            '/^\<success\>Backup `\/tmp\/backups\/backup_test_[0-9]{14}\.sql` has been exported\<\/success\>$/',
+            '/^\<success\>Backup `' . $target . 'backup_test_[0-9]{14}\.sql` has been exported\<\/success\>$/',
             next($output)
         );
-        $this->assertEquals('<success>Backup `/tmp/backups/backup.sql` has been exported</success>', next($output));
         $this->assertRegExp(
-            '/^\<success\>Backup `\/tmp\/backups\/backup_test_[0-9]{14}\.sql` has been exported\<\/success\>$/',
+            '/^\<success\>Backup `' . $target . 'backup\.sql` has been exported\<\/success\>$/',
+            next($output)
+        );
+        $this->assertRegExp(
+            '/^\<success\>Backup `' . $target . 'backup_test_[0-9]{14}\.sql` has been exported\<\/success\>$/',
             next($output)
         );
         $this->assertRegExp('/^Backup `backup_test_[0-9]{14}\.sql` has been deleted$/', next($output));
         $this->assertEquals('<success>Deleted backup files: 1</success>', next($output));
         $this->assertRegExp(
-            '/^\<success\>Backup `\/tmp\/backups\/backup_test_[0-9]{14}\.sql` has been exported\<\/success\>$/',
+            '/^\<success\>Backup `' . $target . 'backup_test_[0-9]{14}\.sql` has been exported\<\/success\>$/',
             next($output)
         );
 
@@ -180,7 +185,7 @@ class BackupShellTest extends TestCase
         }
 
         $this->assertRegExp(
-            '/^\<success\>Backup `\/tmp\/backups\/backup_test_[0-9]{14}\.sql` was sent via mail\<\/success\>$/',
+            '/^\<success\>Backup `' . $target . 'backup_test_\d+\.sql` was sent via mail\<\/success\>$/',
             next($output)
         );
 
@@ -267,14 +272,18 @@ class BackupShellTest extends TestCase
      */
     public function testImport()
     {
+        $target = preg_quote(Configure::read(DATABASE_BACKUP . '.target') . DS, '/');
+
         //Exports a database
         $backup = $this->BackupExport->filename('backup.sql')->export();
 
         $this->BackupShell->import($backup);
 
-        $this->assertEquals([
-            '<success>Backup `/tmp/backups/backup.sql` has been imported</success>',
-        ], $this->out->messages());
+        $this->assertCount(1, $this->out->messages());
+        $this->assertRegExp(
+            '/^\<success\>Backup `' . $target . 'backup\.sql` has been imported\<\/success\>$/',
+            $this->out->messages()[0]
+        );
         $this->assertEmpty($this->err->messages());
     }
 
@@ -341,6 +350,8 @@ class BackupShellTest extends TestCase
      */
     public function testSend()
     {
+        $target = preg_quote(Configure::read(DATABASE_BACKUP . '.target') . DS, '/');
+
         //Gets a backup file
         $file = $this->createBackup();
 
@@ -351,8 +362,8 @@ class BackupShellTest extends TestCase
         $this->assertGreaterThanOrEqual(1, count($output));
         $this->assertLessThanOrEqual(2, count($output));
 
-        $this->assertEquals(
-            '<success>Backup `/tmp/backups/backup.sql` was sent via mail</success>',
+        $this->assertRegExp(
+            '/^\<success\>Backup `' . $target . 'backup\.sql` was sent via mail\<\/success\>$/',
             collection($output)->last()
         );
         $this->assertEmpty($this->err->messages());

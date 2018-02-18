@@ -24,6 +24,17 @@ if (!function_exists('isPositive')) {
     }
 }
 
+if (!function_exists('isWin')) {
+    /**
+     * Returns `true` if the environment is Windows
+     * @return bool
+     */
+    function isWin()
+    {
+        return DS === '\\';
+    }
+}
+
 if (!function_exists('rtr')) {
     /**
      * Returns the relative path (to the APP root) of an absolute path
@@ -40,10 +51,16 @@ if (!function_exists('which')) {
     /**
      * Executes the `which` command and shows the full path of (shell) commands
      * @param string $command Command
-     * @return string
+     * @return string|null
      */
     function which($command)
     {
-        return exec(sprintf('which %s', $command));
+        $executable = isWin() ? 'where' : 'which';
+
+        exec(sprintf('%s %s 2>&1', $executable, $command), $path, $exitCode);
+
+        $path = isWin() && !empty($path) ? array_map('escapeshellarg', $path) : $path;
+
+        return $exitCode === 0 && !empty($path[0]) ? $path[0] : null;
     }
 }

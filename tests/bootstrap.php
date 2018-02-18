@@ -95,18 +95,23 @@ if (version_compare(Configure::version(), '3.4.13', '>=')) {
 } else {
     $sqliteUrl = 'sqlite:\\' . TMP . 'example.sq3';
 }
-ConnectionManager::config('test', ['url' => 'mysql://root@localhost/test']);
+
+if (!getenv('db_dsn')) {
+    putenv('db_dsn=mysql://root:@localhost/test');
+}
+if (!getenv('db_dsn_postgres')) {
+    putenv('db_dsn_postgres=postgres://postgres@localhost/travis_ci_test');
+}
+
+ConnectionManager::config('test', ['url' => getenv('db_dsn')]);
+ConnectionManager::config('test_postgres', ['url' => getenv('db_dsn_postgres')]);
 ConnectionManager::config('test_sqlite', ['url' => $sqliteUrl]);
-ConnectionManager::config('test_postgres', ['url' => 'postgres://postgres@localhost/travis_ci_test']);
 
 Configure::write('DatabaseBackup.connection', 'test');
 Configure::write('DatabaseBackup.target', TMP . 'backups');
 Configure::write('DatabaseBackup.mailSender', 'sender@example.com');
 
-Plugin::load('DatabaseBackup', [
-    'bootstrap' => true,
-    'path' => ROOT,
-]);
+Plugin::load('DatabaseBackup', ['bootstrap' => true, 'path' => ROOT]);
 
 //Sets debug log
 Log::config('debug', [
