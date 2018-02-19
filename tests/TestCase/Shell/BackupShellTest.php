@@ -16,6 +16,7 @@ use Cake\Console\ConsoleIo;
 use Cake\Core\Configure;
 use Cake\I18n\Number;
 use Cake\TestSuite\Stub\ConsoleOutput;
+use Cake\Utility\Inflector;
 use DatabaseBackup\Shell\BackupShell;
 use DatabaseBackup\TestSuite\TestCase;
 use DatabaseBackup\Utility\BackupExport;
@@ -401,7 +402,7 @@ class BackupShellTest extends TestCase
         ];
 
         if (version_compare(Configure::version(), '3.5', '<')) {
-            $subCommands = array_replace($subCommands, [0 => 'deleteAll']);
+            $subCommands = array_map([Inflector::class, 'variable'], $subCommands);
         }
 
         $this->assertEquals($subCommands, array_keys($parser->subcommands()));
