@@ -57,10 +57,12 @@ abstract class TestCase extends CakeTestCase
      * Loads all fixtures declared in the `$fixtures` property
      * @return void
      */
-    public function loadAllFixtures()
+    public function loadFixtures()
     {
         $fixtures = $this->getProperty($this->fixtureManager, '_fixtureMap');
 
-        call_user_func_array([$this, 'loadFixtures'], array_keys($fixtures));
+        foreach (array_keys($fixtures) as $fixture) {
+            parent::loadFixtures($fixture);
+        }
     }
 }

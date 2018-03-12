@@ -284,7 +284,7 @@ abstract class DriverTestCase extends TestCase
     public function testExportAndImport()
     {
         foreach ($this->getValidExtensions() as $extension) {
-            $this->loadAllFixtures();
+            $this->loadFixtures();
 
             $backup = $this->getAbsolutePath(sprintf('example.%s', $extension));
 
