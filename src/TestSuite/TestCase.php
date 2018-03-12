@@ -15,6 +15,7 @@ namespace DatabaseBackup\TestSuite;
 
 use Cake\Core\Configure;
 use Cake\TestSuite\TestCase as CakeTestCase;
+use DatabaseBackup\TestSuite\TestCaseTrait;
 use Reflection\ReflectionTrait;
 
 /**
@@ -23,6 +24,7 @@ use Reflection\ReflectionTrait;
 abstract class TestCase extends CakeTestCase
 {
     use ReflectionTrait;
+    use TestCaseTrait;
 
     /**
      * Setup the test case, backup the static object values so they can be
@@ -49,51 +51,6 @@ abstract class TestCase extends CakeTestCase
         $this->deleteAllBackups();
 
         Configure::write(DATABASE_BACKUP . '.connection', 'test');
-    }
-
-    /**
-     * Internal method to create a backup file
-     * @return string
-     */
-    protected function createBackup()
-    {
-        return $this->BackupExport->filename('backup.sql')->export();
-    }
-
-    /**
-     * Internal method to creates some backup files
-     * @param bool $sleep If `true`, waits a second for each backup
-     * @return array
-     */
-    protected function createSomeBackups($sleep = false)
-    {
-        $files[] = $this->BackupExport->filename('backup.sql')->export();
-
-        if ($sleep) {
-            sleep(1);
-        }
-
-        $files[] = $this->BackupExport->filename('backup.sql.bz2')->export();
-
-        if ($sleep) {
-            sleep(1);
-        }
-
-        $files[] = $this->BackupExport->filename('backup.sql.gz')->export();
-
-        return $files;
-    }
-
-    /**
-     * Deletes all backups
-     * @return void
-     */
-    public function deleteAllBackups()
-    {
-        foreach (glob(Configure::read(DATABASE_BACKUP . '.target') . DS . '*') as $file) {
-            //@codingStandardsIgnoreLine
-            @unlink($file);
-        }
     }
 
     /**
