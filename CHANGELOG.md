@@ -1,6 +1,15 @@
 # 2.x branch
-## 2.2 branch
-### 2.2.1
+## 2.4 branch
+### 2.4.0
+* fixed bug trying to email a nonexistent backup;
+* `VALID_COMPRESSIONS` and `VALID_EXTENSIONS` constants have been replaced by
+    `getValidCompressions()` and `getValidExtensions()` methods provided by the
+    `BackupTrait` class;
+* replaced `InternalErrorException` with `InvalidArgumentException` and 
+    `RuntimeException`. This allows compatibility with CakePHP 3.6 branch.
+
+## 2.3 branch
+### 2.3.0
 * full support for working under Windows;
 * added `Driver::getConfig()` method, removed `Driver::$config` property. This
     allows you to get the configuration values safely;
@@ -10,6 +19,7 @@
 * added `isWin()` global function;
 * tests can have `onlyUnix` or `onlyWindows` group.
 
+## 2.2 branch
 ### 2.2.0
 * added `ConsoleIntegrationTestCase` and `TestCaseTrait` classes. Console tests
     have been simplified;
