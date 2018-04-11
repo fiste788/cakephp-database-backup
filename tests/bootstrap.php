@@ -114,7 +114,7 @@ Configure::write('DatabaseBackup.mailSender', 'sender@example.com');
 Plugin::load('DatabaseBackup', ['bootstrap' => true, 'path' => ROOT]);
 
 //Sets debug log
-Log::setConfig('debug', [
+Log::config('debug', [
     'className' => 'File',
     'path' => LOGS,
     'levels' => ['notice', 'info', 'debug'],

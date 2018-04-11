@@ -217,7 +217,7 @@ class BackupManagerTest extends TestCase
     /**
      * Test for `send()` method, with empty sender
      * @expectedException InvalidArgumentException
-     * @expectedExceptionMessage The email set for "from" is empty.
+     * @expectedExceptionMessageRegExp /^(Invalid email\: \"\"|The email set for \"from\" is empty\.)$/
      * @test
      */
     public function testSendEmptySender()
@@ -244,7 +244,7 @@ class BackupManagerTest extends TestCase
     /**
      * Test for `send()` method, with an invalid sender
      * @expectedException InvalidArgumentException
-     * @expectedExceptionMessage Invalid email set for "from". You passed "invalidSender".
+     * @expectedExceptionMessageRegExp /^(Invalid email\: \"invalidSender\"|Invalid email set for \"from\"\. You passed \"invalidSender\"\.)$/
      * @test
      */
     public function testSendInvalidSender()
