@@ -16,7 +16,7 @@ namespace DatabaseBackup\TestSuite;
 use Cake\Core\Configure;
 use Cake\TestSuite\TestCase as CakeTestCase;
 use DatabaseBackup\TestSuite\TestCaseTrait;
-use Reflection\ReflectionTrait;
+use Tools\ReflectionTrait;
 
 /**
  * TestCase class

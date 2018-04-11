@@ -3,6 +3,7 @@
 [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.txt)
 [![Build Status](https://api.travis-ci.org/mirko-pagliai/cakephp-database-backup.svg?branch=master)](https://travis-ci.org/mirko-pagliai/cakephp-database-backup)
 [![Build status](https://ci.appveyor.com/api/projects/status/imerokwpvy0r51fj/branch/master?svg=true)](https://ci.appveyor.com/project/mirko-pagliai/cakephp-database-backup/branch/master)
+[![codecov](https://codecov.io/gh/mirko-pagliai/cakephp-database-backup/branch/master/graph/badge.svg)](https://codecov.io/gh/mirko-pagliai/cakephp-database-backup)
 [![Coverage Status](https://img.shields.io/codecov/c/github/mirko-pagliai/cakephp-database-backup.svg?style=flat-square)](https://codecov.io/github/mirko-pagliai/cakephp-database-backup)
 
 *DatabaseBackup* is a CakePHP plugin to export, import and manage database backups.  
@@ -45,6 +46,10 @@ also required.
 
 The installation of these binaries may vary depending on your operating system.
 
+Please forward, remember that the database user must have the correct
+permissions (for example, for `mysql` the user must have the `LOCK TABLES`
+permission).
+
 ## Configuration
 The plugin uses some configuration parameters. See our wiki:
 * [Configuration](https://github.com/mirko-pagliai/cakephp-database-backup/wiki/Configuration)
@@ -72,7 +77,7 @@ By default, phpunit is executed like this:
 
 On Windows, it must be done this way:
 
-    vendor/bin/phpunit --exclude-group=onlyUnix
+    vendor\bin\phpunit.bat --exclude-group=onlyUnix
 
 ## Versioning
 For transparency and insight into our release cycle and to maintain backward 

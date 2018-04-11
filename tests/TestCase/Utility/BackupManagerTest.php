@@ -16,7 +16,7 @@ use Cake\Core\Configure;
 use DatabaseBackup\TestSuite\TestCase;
 use DatabaseBackup\Utility\BackupExport;
 use DatabaseBackup\Utility\BackupManager;
-use Reflection\ReflectionTrait;
+use Tools\ReflectionTrait;
 
 /**
  * BackupManagerTest class
@@ -135,7 +135,7 @@ class BackupManagerTest extends TestCase
         //Checks for properties of each backup object
         foreach ($files as $file) {
             $this->assertInstanceOf('Cake\ORM\Entity', $file);
-            $this->assertTrue(isPositive($file->size));
+            $this->assertTrue(is_positive($file->size));
             $this->assertInstanceOf('Cake\I18n\FrozenTime', $file->datetime);
         }
     }

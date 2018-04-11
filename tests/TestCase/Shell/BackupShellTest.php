@@ -21,7 +21,7 @@ use DatabaseBackup\Shell\BackupShell;
 use DatabaseBackup\TestSuite\TestCase;
 use DatabaseBackup\Utility\BackupExport;
 use DatabaseBackup\Utility\BackupManager;
-use Reflection\ReflectionTrait;
+use Tools\ReflectionTrait;
 
 /**
  * BackupShellTest class
