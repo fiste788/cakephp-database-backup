@@ -40,13 +40,11 @@ define('CACHE', TMP);
 define('LOGS', TMP);
 define('SESSIONS', TMP . 'sessions' . DS);
 
-//@codingStandardsIgnoreStart
-@mkdir(LOGS);
-@mkdir(SESSIONS);
-@mkdir(CACHE);
-@mkdir(CACHE . 'views');
-@mkdir(CACHE . 'models');
-//@codingStandardsIgnoreEnd
+safe_mkdir(LOGS);
+safe_mkdir(SESSIONS);
+safe_mkdir(CACHE);
+safe_mkdir(CACHE . 'views');
+safe_mkdir(CACHE . 'models');
 
 require CORE_PATH . 'config' . DS . 'bootstrap.php';
 
@@ -73,7 +71,6 @@ Configure::write('App', [
     'cssBaseUrl' => 'css/',
     'paths' => [
         'plugins' => [APP . 'Plugin' . DS],
-        'templates' => [APP . 'TestApp' . DS . 'Template' . DS],
     ]
 ]);
 
@@ -107,10 +104,13 @@ if (!getenv('db_dsn')) {
 if (!getenv('db_dsn_postgres')) {
     putenv('db_dsn_postgres=postgres://postgres@localhost/travis_ci_test');
 }
+if (!getenv('db_dsn_sqlite')) {
+    putenv('db_dsn_sqlite=sqlite:///' . TMP . 'example.sq3');
+}
 
-ConnectionManager::config('test', ['url' => getenv('db_dsn')]);
-ConnectionManager::config('test_postgres', ['url' => getenv('db_dsn_postgres')]);
-ConnectionManager::config('test_sqlite', ['url' => $sqliteUrl]);
+ConnectionManager::setConfig('test', ['url' => getenv('db_dsn')]);
+ConnectionManager::setConfig('test_postgres', ['url' => getenv('db_dsn_postgres')]);
+ConnectionManager::setConfig('test_sqlite', ['url' => getenv('db_dsn_sqlite')]);
 
 Configure::write('DatabaseBackup.connection', 'test');
 Configure::write('DatabaseBackup.target', TMP . 'backups');

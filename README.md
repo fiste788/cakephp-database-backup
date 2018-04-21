@@ -4,7 +4,6 @@
 [![Build Status](https://api.travis-ci.org/mirko-pagliai/cakephp-database-backup.svg?branch=master)](https://travis-ci.org/mirko-pagliai/cakephp-database-backup)
 [![Build status](https://ci.appveyor.com/api/projects/status/imerokwpvy0r51fj/branch/master?svg=true)](https://ci.appveyor.com/project/mirko-pagliai/cakephp-database-backup/branch/master)
 [![codecov](https://codecov.io/gh/mirko-pagliai/cakephp-database-backup/branch/master/graph/badge.svg)](https://codecov.io/gh/mirko-pagliai/cakephp-database-backup)
-[![Coverage Status](https://img.shields.io/codecov/c/github/mirko-pagliai/cakephp-database-backup.svg?style=flat-square)](https://codecov.io/github/mirko-pagliai/cakephp-database-backup)
 
 *DatabaseBackup* is a CakePHP plugin to export, import and manage database backups.  
 Currently, the plugin supports *MySql*, *Postgres* and *Sqlite* databases.
@@ -14,9 +13,10 @@ You can install the plugin via composer:
 
     $ composer require --prefer-dist mirko-pagliai/cakephp-database-backup
 
-**NOTE**: the package may require one of the latest versions version of CakePHP.  
+**NOTE: the latest version available requires at least CakePHP 3.5**.
+
 Instead, the [cakephp3.2](//github.com/mirko-pagliai/cakephp-database-backup/tree/cakephp3.2)
-branch is compatible with CakePHP versions from 3.2 onwards.  
+branch is compatible with all previous versions of CakePHP from version 3.2. 
 In this case, you can install the package as well:
 
     $ composer require --prefer-dist mirko-pagliai/cakephp-database-backup:dev-cakephp3.2
