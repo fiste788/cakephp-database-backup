@@ -55,7 +55,7 @@ if (!Configure::check(DATABASE_BACKUP . '.target')) {
 $target = Configure::read(DATABASE_BACKUP . '.target');
 
 if (!file_exists($target)) {
-    safe_mkdir($target);
+    @mkdir($target);
 }
 
 if (!is_writeable($target)) {

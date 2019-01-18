@@ -60,7 +60,7 @@ trait TestCaseTrait
     public function deleteAllBackups()
     {
         foreach (glob(Configure::read(DATABASE_BACKUP . '.target') . DS . '*') as $file) {
-            safe_unlink($file);
+            @unlink($file);
         }
     }
 }

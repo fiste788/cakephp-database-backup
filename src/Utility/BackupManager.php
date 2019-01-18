@@ -45,7 +45,7 @@ class BackupManager
             throw new RuntimeException(__d('database_backup', 'File or directory `{0}` not writable', $filename));
         }
 
-        return safe_unlink($filename);
+        return @unlink($filename);
     }
 
     /**

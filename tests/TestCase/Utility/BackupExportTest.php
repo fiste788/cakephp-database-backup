@@ -67,7 +67,7 @@ class BackupExportTest extends TestCase
         parent::tearDown();
 
         //Deletes debug log
-        safe_unlink(LOGS . 'debug.log');
+        @unlink(LOGS . 'debug.log');
     }
 
     /**
