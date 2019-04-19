@@ -17,7 +17,6 @@ use Cake\Core\Configure;
 use Cake\TestSuite\TestCase as CakeTestCase;
 use DatabaseBackup\TestSuite\TestCaseTrait;
 use Tools\ReflectionTrait;
-use Tools\TestSuite\TestTrait as ToolsTestTrait;
 
 /**
  * TestCase class
@@ -26,7 +25,6 @@ abstract class TestCase extends CakeTestCase
 {
     use ReflectionTrait;
     use TestCaseTrait;
-    use ToolsTestTrait;
 
     /**
      * Setup the test case, backup the static object values so they can be

@@ -14,12 +14,15 @@
 namespace DatabaseBackup\TestSuite;
 
 use Cake\Core\Configure;
+use Tools\TestSuite\TestTrait as BaseTestTrait;
 
 /**
  * TestCaseTrait class
  */
 trait TestCaseTrait
 {
+    use BaseTestTrait;
+
     /**
      * Internal method to create a backup file
      * @return string
