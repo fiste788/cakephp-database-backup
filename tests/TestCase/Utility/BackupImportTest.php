@@ -91,7 +91,7 @@ class BackupImportTest extends TestCase
     /**
      * Test for `filename()` method, with invalid directory
      * @expectedException RuntimeException
-     * @expectedExceptionMessageRegExp /^File or directory `[\s\w\/:\\]+backup\.sql` not readable$/
+     * @expectedExceptionMessageRegExp /^File or directory `[\s\w\/:\\\-]+backup\.sql` not readable$/
      * @test
      */
     public function testFilenameWithInvalidDirectory()
