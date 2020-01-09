@@ -100,7 +100,14 @@ class BackupManager
             __d('database_backup', 'Invalid rotate value'),
             InvalidArgumentException::class
         );
-        $backupsToBeDeleted = $this->index()->skip((int)$rotate);
+        $backupsToBeDeleted = $this->index();
+
+        $count = count($backupsToBeDeleted instanceof \Cake\Collection\Collection ? $backupsToBeDeleted->toList() : $backupsToBeDeleted);
+        if ($count < $rotate) {
+            return [];
+        }
+
+        $backupsToBeDeleted = $backupsToBeDeleted->skip((int)$rotate);
         array_map([$this, 'delete'], $backupsToBeDeleted->extract('filename')->toList());
 
         return $backupsToBeDeleted->toList();

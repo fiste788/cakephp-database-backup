@@ -12,6 +12,7 @@
  */
 namespace DatabaseBackup\Test\TestCase\Utility;
 
+use Cake\Collection\Collection;
 use Cake\Core\Configure;
 use Cake\I18n\FrozenTime;
 use Cake\Mailer\Email;
@@ -139,7 +140,7 @@ class BackupManagerTest extends TestCase
 
         //Now there are two files. Only uncompressed file was deleted
         $filesAfterRotate = $this->BackupManager->index();
-        $this->assertEquals(2, $filesAfterRotate->count());
+        $this->assertCount(2, $filesAfterRotate instanceof Collection ? $filesAfterRotate->toList() : $filesAfterRotate);
         $this->assertEquals(['gzip', 'bzip2'], $filesAfterRotate->extract('compression')->toList());
 
         //Gets the difference

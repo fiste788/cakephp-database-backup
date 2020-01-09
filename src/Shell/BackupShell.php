@@ -13,6 +13,7 @@
  */
 namespace DatabaseBackup\Shell;
 
+use Cake\Collection\Collection;
 use Cake\Console\ConsoleIo;
 use Cake\Console\Shell;
 use Cake\I18n\Number;
@@ -185,10 +186,11 @@ class BackupShell extends Shell
     {
         //Gets all backups
         $backups = $this->BackupManager->index();
+        $count = count($backups instanceof Collection ? $backups->toList() : $backups);
 
-        $this->out(__d('database_backup', 'Backup files found: {0}', $backups->count()));
+        $this->out(__d('database_backup', 'Backup files found: {0}', $count));
 
-        if ($backups->count()) {
+        if ($count) {
             //Parses backups
             $backups = $backups->map(function ($backup) {
                 $backup->set('size', Number::toReadableSize($backup->get('size')));
