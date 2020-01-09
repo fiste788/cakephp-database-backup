@@ -15,7 +15,6 @@ namespace DatabaseBackup\Utility;
 
 use DatabaseBackup\BackupTrait;
 use InvalidArgumentException;
-use RuntimeException;
 
 /**
  * Utility to import databases
@@ -52,22 +51,21 @@ class BackupImport
      * @param string $filename Filename. It can be an absolute path
      * @return \DatabaseBackup\Utility\BackupImport
      * @see https://github.com/mirko-pagliai/cakephp-database-backup/wiki/How-to-use-the-BackupImport-utility#filename
-     * @throws InvalidArgumentException
-     * @throws RuntimeException
+     * @throws \InvalidArgumentException
+     * @throws \Tools\Exception\NotReadableException
      * @uses $filename
      */
     public function filename($filename)
     {
         $filename = $this->getAbsolutePath($filename);
-
-        if (!is_readable($filename)) {
-            throw new RuntimeException(__d('database_backup', 'File or directory `{0}` not readable', $filename));
-        }
+        is_readable_or_fail($filename);
 
         //Checks for extension
-        if (!$this->getExtension($filename)) {
-            throw new InvalidArgumentException(__d('database_backup', 'Invalid file extension'));
-        }
+        is_true_or_fail(
+            $this->getExtension($filename),
+            __d('database_backup', 'Invalid file extension'),
+            InvalidArgumentException::class
+        );
 
         $this->filename = $filename;
 
@@ -78,15 +76,17 @@ class BackupImport
      * Imports the database
      * @return string Filename path
      * @see https://github.com/mirko-pagliai/cakephp-database-backup/wiki/How-to-use-the-BackupImport-utility#import
-     * @throws RuntimeException
+     * @throws \InvalidArgumentException
      * @uses $driver
      * @uses $filename
      */
     public function import()
     {
-        if (empty($this->filename)) {
-            throw new RuntimeException(__d('database_backup', 'You must first set the filename'));
-        }
+        is_true_or_fail(
+            !empty($this->filename),
+            __d('database_backup', 'You must first set the filename'),
+            InvalidArgumentException::class
+        );
 
         //This allows the filename to be set again with a next call of this
         //  method

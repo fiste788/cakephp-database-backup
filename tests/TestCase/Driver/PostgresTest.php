@@ -12,7 +12,6 @@
  */
 namespace DatabaseBackup\Test\TestCase\Driver;
 
-use Cake\Core\Configure;
 use Cake\Database\Connection;
 use DatabaseBackup\Driver\Postgres;
 use DatabaseBackup\TestSuite\DriverTestCase;
@@ -25,31 +24,24 @@ class PostgresTest extends DriverTestCase
     /**
      * @var \DatabaseBackup\Driver\Postgres
      */
-    protected $Driver;
+    protected $DriverClass = Postgres::class;
+
+    /**
+     * Name of the database connection
+     * @var string
+     */
+    protected $connection = 'test_postgres';
 
     /**
      * Fixtures
      * @var array
      */
     public $fixtures = [
-        'plugin.database_backup.Postgres\Articles',
-        'plugin.database_backup.Postgres\Comments',
+//        'plugin.database_backup.Postgres\Articles',
+//        'plugin.database_backup.Postgres\Comments',
+        'plugin.DatabaseBackup.Postgres/Articles',
+        'plugin.DatabaseBackup.Postgres/Comments',
     ];
-
-    /**
-     * Setup the test case, backup the static object values so they can be
-     * restored. Specifically backs up the contents of Configure and paths in
-     *  App if they have not already been backed up
-     * @return void
-     */
-    public function setUp()
-    {
-        Configure::write(DATABASE_BACKUP . '.connection', 'test_postgres');
-
-        $this->Driver = new Postgres($this->getConnection());
-
-        parent::setUp();
-    }
 
     /**
      * Test for `getDbnameAsString()` method
@@ -58,19 +50,13 @@ class PostgresTest extends DriverTestCase
     public function testGetDbnameAsString()
     {
         $password = $this->Driver->getConfig('password');
-
-        if ($password) {
-            $password = ':' . $password;
-        }
-
-        $expected = 'postgresql://postgres' . $password . '@localhost/travis_ci_test';
+        $expected = 'postgresql://postgres' . ($password ? ':' . $password : null) . '@localhost/travis_ci_test';
         $this->assertEquals($expected, $this->invokeMethod($this->Driver, 'getDbnameAsString'));
 
         //Adds a password to the config
-        $config = array_merge($this->Driver->getConfig(), ['password' => 'mypassword']);
-        $this->setProperty($this->Driver, 'connection', new Connection($config));
-
         $expected = 'postgresql://postgres:mypassword@localhost/travis_ci_test';
+        $config = ['password' => 'mypassword'] + $this->Driver->getConfig();
+        $this->setProperty($this->Driver, 'connection', new Connection($config));
         $this->assertEquals($expected, $this->invokeMethod($this->Driver, 'getDbnameAsString'));
     }
 
@@ -81,15 +67,10 @@ class PostgresTest extends DriverTestCase
     public function testExportExecutable()
     {
         $password = $this->Driver->getConfig('password');
-
-        if ($password) {
-            $password = ':' . $password;
-        }
-
         $expected = sprintf(
             '%s --format=c -b --dbname=postgresql://postgres%s@localhost/travis_ci_test',
-            $this->getBinary('pg_dump'),
-            $password
+            $this->Driver->getBinary('pg_dump'),
+            $password ? ':' . $password : null
         );
         $this->assertEquals($expected, $this->invokeMethod($this->Driver, '_exportExecutable'));
     }
@@ -101,50 +82,11 @@ class PostgresTest extends DriverTestCase
     public function testImportExecutable()
     {
         $password = $this->Driver->getConfig('password');
-
-        if ($password) {
-            $password = ':' . $password;
-        }
-
         $expected = sprintf(
             '%s --format=c -c -e --dbname=postgresql://postgres%s@localhost/travis_ci_test',
-            $this->getBinary('pg_restore'),
-            $password
+            $this->Driver->getBinary('pg_restore'),
+            $password ? ':' . $password : null
         );
         $this->assertEquals($expected, $this->invokeMethod($this->Driver, '_importExecutable'));
-    }
-
-    /**
-     * Test for `export()` method on failure
-     * @expectedException RuntimeException
-     * @expectedExceptionMessage Failed with exit code `1`
-     * @test
-     */
-    public function testExportOnFailure()
-    {
-        //Sets a no existing database
-        $config = array_merge($this->Driver->getConfig(), ['database' => 'noExisting']);
-        $this->setProperty($this->Driver, 'connection', new Connection($config));
-
-        $this->Driver->export($this->getAbsolutePath('example.sql'));
-    }
-
-    /**
-     * Test for `import()` method on failure
-     * @expectedException RuntimeException
-     * @expectedExceptionMessage Failed with exit code `1`
-     * @test
-     */
-    public function testImportOnFailure()
-    {
-        $backup = $this->getAbsolutePath('example.sql');
-
-        $this->Driver->export($backup);
-
-        //Sets a no existing database
-        $config = array_merge($this->Driver->getConfig(), ['database' => 'noExisting']);
-        $this->setProperty($this->Driver, 'connection', new Connection($config));
-
-        $this->Driver->import($backup);
     }
 }

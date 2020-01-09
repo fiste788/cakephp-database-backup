@@ -14,13 +14,13 @@
 namespace DatabaseBackup\Utility;
 
 use Cake\Core\Configure;
-use Cake\Filesystem\Folder;
 use Cake\I18n\FrozenTime;
 use Cake\Mailer\Email;
 use Cake\ORM\Entity;
 use DatabaseBackup\BackupTrait;
 use InvalidArgumentException;
-use RuntimeException;
+use Symfony\Component\Finder\Finder;
+use Symfony\Component\Finder\SplFileInfo;
 
 /**
  * Utility to manage database backups
@@ -35,17 +35,14 @@ class BackupManager
      *  The path can be relative to the backup directory
      * @return bool
      * @see https://github.com/mirko-pagliai/cakephp-database-backup/wiki/How-to-use-the-BackupManager-utility#delete
-     * @throws RuntimeException
+     * @throws \Tools\Exception\NotWritableException
      */
     public function delete($filename)
     {
         $filename = $this->getAbsolutePath($filename);
+        is_writable_or_fail($filename);
 
-        if (!is_writable($filename)) {
-            throw new RuntimeException(__d('database_backup', 'File or directory `{0}` not writable', $filename));
-        }
-
-        return @unlink($filename);
+        return unlink($filename);
     }
 
     /**
@@ -58,38 +55,30 @@ class BackupManager
      */
     public function deleteAll()
     {
-        $deleted = [];
-
-        foreach ($this->index() as $file) {
-            if ($this->delete($file->filename)) {
-                $deleted[] = $file->filename;
-            }
-        }
-
-        return $deleted;
+        return array_filter(array_map(function ($filename) {
+            return !$this->delete($filename) ?: $filename;
+        }, $this->index()->extract('filename')->toList()));
     }
 
     /**
      * Returns a list of database backups
-     * @return array Backups as entities
+     * @return \Cake\Collection\Collection Collection of backups. Each backup
+     *  is an entity
      * @see https://github.com/mirko-pagliai/cakephp-database-backup/wiki/How-to-use-the-BackupManager-utility#index
      */
     public function index()
     {
-        $target = $this->getTarget();
+        $finder = (new Finder())->files()->name('/\.sql(\.(gz|bz2))?$/')->in(Configure::read('DatabaseBackup.target'));
 
-        return collection((new Folder($target))->find('.+\.sql(\.(gz|bz2))?'))
-            ->map(function ($filename) use ($target) {
-                return new Entity([
-                    'filename' => $filename,
-                    'extension' => $this->getExtension($filename),
-                    'compression' => $this->getCompression($filename),
-                    'size' => filesize($target . DS . $filename),
-                    'datetime' => new FrozenTime(date('Y-m-d H:i:s', filemtime($target . DS . $filename))),
-                ]);
-            })
-            ->sortBy('datetime')
-            ->toList();
+        return collection($finder)->map(function (SplFileInfo $file) {
+            return new Entity([
+                'filename' => $file->getFilename(),
+                'extension' => $this->getExtension($file->getFilename()),
+                'compression' => $this->getCompression($file->getFilename()),
+                'size' => $file->getSize(),
+                'datetime' => FrozenTime::createFromTimestamp($file->getMTime()),
+            ]);
+        })->sortBy('datetime');
     }
 
     /**
@@ -100,24 +89,21 @@ class BackupManager
      * @param int $rotate Number of backups that you want to keep
      * @return array Array of deleted files
      * @see https://github.com/mirko-pagliai/cakephp-database-backup/wiki/How-to-use-the-BackupManager-utility#rotate
-     * @throws InvalidArgumentException
+     * @throws \InvalidArgumentException
      * @uses delete()
      * @uses index()
      */
     public function rotate($rotate)
     {
-        if (!is_positive($rotate)) {
-            throw new InvalidArgumentException(__d('database_backup', 'Invalid rotate value'));
-        }
+        is_true_or_fail(
+            is_positive($rotate),
+            __d('database_backup', 'Invalid rotate value'),
+            InvalidArgumentException::class
+        );
+        $backupsToBeDeleted = $this->index()->skip((int)$rotate);
+        array_map([$this, 'delete'], $backupsToBeDeleted->extract('filename')->toList());
 
-        $backupsToBeDeleted = array_slice($this->index(), $rotate);
-
-        //Deletes
-        foreach ($backupsToBeDeleted as $backup) {
-            $this->delete($backup->filename);
-        }
-
-        return $backupsToBeDeleted;
+        return $backupsToBeDeleted->toList();
     }
 
     /**
@@ -127,23 +113,20 @@ class BackupManager
      * @param string $recipient Recipient's email address
      * @return \Cake\Mailer\Email
      * @since 1.1.0
+     * @throws \Tools\Exception\NotReadableException
      */
     protected function getEmailInstance($backup, $recipient)
     {
         $file = $this->getAbsolutePath($backup);
-
-        if (!is_readable($file)) {
-            throw new RuntimeException(__d('database_backup', 'File or directory `{0}` not readable', $file));
-        }
-
+        is_readable_or_fail($file);
         $basename = basename($file);
-        $mimetype = mime_content_type($file);
+        $server = env('SERVER_NAME', 'localhost');
 
-        return (new Email)
-            ->from(Configure::readOrFail(DATABASE_BACKUP . '.mailSender'))
+        return (new Email())
+            ->from(Configure::readOrFail('DatabaseBackup.mailSender'))
             ->to($recipient)
-            ->subject(__d('database_backup', 'Database backup {0} from {1}', $basename, env('SERVER_NAME', 'localhost')))
-            ->attachments([$basename => compact('file', 'mimetype')]);
+            ->subject(__d('database_backup', 'Database backup {0} from {1}', $basename, $server))
+            ->attachments([$basename => compact('file') + ['mimetype' => mime_content_type($file)]]);
     }
 
     /**

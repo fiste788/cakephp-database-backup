@@ -60,7 +60,7 @@ class BackupShell extends Shell
     {
         parent::__construct($io);
 
-        $this->BackupManager = new BackupManager;
+        $this->BackupManager = new BackupManager();
         $this->config = $this->getConnection()->config();
         $this->driver = $this->getDriver($this->getConnection());
     }
@@ -119,7 +119,7 @@ class BackupShell extends Shell
     public function export()
     {
         try {
-            $instance = new BackupExport;
+            $instance = new BackupExport();
 
             //Sets the output filename or the compression type.
             //Regarding the `rotate` option, the `BackupShell::rotate()` method
@@ -166,7 +166,7 @@ class BackupShell extends Shell
     public function import($filename)
     {
         try {
-            $file = (new BackupImport)->filename($filename)->import();
+            $file = (new BackupImport())->filename($filename)->import();
 
             $this->success(__d('database_backup', 'Backup `{0}` has been imported', rtr($file)));
         } catch (Exception $e) {
@@ -186,17 +186,16 @@ class BackupShell extends Shell
         //Gets all backups
         $backups = $this->BackupManager->index();
 
-        $this->out(__d('database_backup', 'Backup files found: {0}', count($backups)));
+        $this->out(__d('database_backup', 'Backup files found: {0}', $backups->count()));
 
-        if ($backups) {
+        if ($backups->count()) {
             //Parses backups
-            $backups = collection($backups)
-                ->map(function ($backup) {
-                    $backup->size = Number::toReadableSize($backup->size);
+            $backups = $backups->map(function ($backup) {
+                $backup->set('size', Number::toReadableSize($backup->get('size')));
 
-                    return array_values($backup->toArray());
-                })
-                ->toArray();
+                return array_values($backup->toArray());
+            })
+            ->toArray();
 
             //Table headers
             $headers = [
@@ -277,7 +276,7 @@ class BackupShell extends Shell
 
     /**
      * Gets the option parser instance and configures it
-     * @return ConsoleOptionParser
+     * @return \Cake\Console\ConsoleOptionParser
      * @uses getValidCompressions()
      */
     public function getOptionParser()

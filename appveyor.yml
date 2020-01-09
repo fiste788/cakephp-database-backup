@@ -27,7 +27,7 @@ before_test:
 
 install:
   - cd c:\
-  - curl -fsS -o php.zip https://windows.php.net/downloads/releases/php-7.2.20-nts-Win32-VC15-x86.zip
+  - curl -fsS -o php.zip https://windows.php.net/downloads/releases/latest/php-7.2-nts-Win32-VC15-x86-latest.zip
   - 7z x php.zip -oc:\php > nul
   - cd c:\php
   - copy php.ini-production php.ini
@@ -50,4 +50,4 @@ install:
 
 test_script:
   - cd C:\projects\cakephp-database-backup
-  - vendor\bin\phpunit.bat --exclude-group=onlyUnix
+  - vendor\bin\phpunit.bat

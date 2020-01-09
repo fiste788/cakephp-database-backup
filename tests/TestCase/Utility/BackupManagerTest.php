@@ -13,17 +13,23 @@
 namespace DatabaseBackup\Test\TestCase\Utility;
 
 use Cake\Core\Configure;
+use Cake\I18n\FrozenTime;
+use Cake\Mailer\Email;
+use Cake\ORM\Entity;
+use Cake\TestSuite\EmailAssertTrait;
 use DatabaseBackup\TestSuite\TestCase;
 use DatabaseBackup\Utility\BackupExport;
 use DatabaseBackup\Utility\BackupManager;
-use Tools\ReflectionTrait;
+use InvalidArgumentException;
+use Tools\Exception\NotReadableException;
+use Tools\Exception\NotWritableException;
 
 /**
  * BackupManagerTest class
  */
 class BackupManagerTest extends TestCase
 {
-    use ReflectionTrait;
+    use EmailAssertTrait;
 
     /**
      * @var \DatabaseBackup\Utility\BackupExport
@@ -36,17 +42,15 @@ class BackupManagerTest extends TestCase
     protected $BackupManager;
 
     /**
-     * Setup the test case, backup the static object values so they can be
-     * restored. Specifically backs up the contents of Configure and paths in
-     *  App if they have not already been backed up
+     * Called before every test method
      * @return void
      */
     public function setUp()
     {
         parent::setUp();
 
-        $this->BackupExport = new BackupExport;
-        $this->BackupManager = new BackupManager;
+        $this->BackupExport = new BackupExport();
+        $this->BackupManager = new BackupManager();
     }
 
     /**
@@ -56,14 +60,12 @@ class BackupManagerTest extends TestCase
     public function testDelete()
     {
         $filename = $this->BackupExport->export();
-
         $this->assertFileExists($filename);
         $this->assertTrue($this->BackupManager->delete($filename));
         $this->assertFileNotExists($filename);
 
-        //Relative path
+        //With a relative path
         $filename = $this->BackupExport->export();
-
         $this->assertFileExists($filename);
         $this->assertTrue($this->BackupManager->delete(basename($filename)));
         $this->assertFileNotExists($filename);
@@ -75,27 +77,15 @@ class BackupManagerTest extends TestCase
      */
     public function testDeleteAll()
     {
-        //Creates some backups
         $this->createSomeBackups(true);
 
-        $this->assertNotEmpty($this->BackupManager->index());
-        $this->assertEquals([
-            'backup.sql.gz',
-            'backup.sql.bz2',
-            'backup.sql',
-        ], $this->BackupManager->deleteAll());
-        $this->assertEmpty($this->BackupManager->index());
-    }
+        $this->assertEquals(['backup.sql.gz', 'backup.sql.bz2', 'backup.sql'], $this->BackupManager->deleteAll());
+        $this->assertEmpty($this->BackupManager->index()->toList());
 
-    /**
-     * Test for `delete()` method, with a no existing file
-     * @expectedException RuntimeException
-     * @expectedExceptionMessageRegExp /^File or directory `[\s\w\/:\\\-]+noExistingFile.sql` not writable$/
-     * @test
-     */
-    public function testDeleteNoExistingFile()
-    {
-        $this->BackupManager->delete('noExistingFile.sql');
+        //With a no existing file
+        $this->expectException(NotWritableException::class);
+        $this->expectExceptionMessage('File or directory `' . $this->getAbsolutePath('noExistingFile') . '` is not writable');
+        $this->BackupManager->delete('noExistingFile');
     }
 
     /**
@@ -104,39 +94,30 @@ class BackupManagerTest extends TestCase
      */
     public function testIndex()
     {
-        $this->assertEmpty($this->BackupManager->index());
-
         //Creates a text file. This file should be ignored
-        file_put_contents(Configure::read(DATABASE_BACKUP . '.target') . DS . 'text.txt', null);
+        file_put_contents(Configure::read('DatabaseBackup.target') . DS . 'text.txt', null);
 
-        $this->assertEmpty($this->BackupManager->index());
-
-        //Creates some backups
         $this->createSomeBackups(true);
+
         $files = $this->BackupManager->index();
-        $this->assertEquals(3, count($files));
 
         //Checks compressions
-        $compressions = collection($files)->extract('compression')->toArray();
+        $compressions = $files->extract('compression')->toList();
         $this->assertEquals(['gzip', 'bzip2', false], $compressions);
 
         //Checks filenames
-        $filenames = collection($files)->extract('filename')->toArray();
-        $this->assertEquals([
-            'backup.sql.gz',
-            'backup.sql.bz2',
-            'backup.sql',
-        ], $filenames);
+        $filenames = $files->extract('filename')->toList();
+        $this->assertEquals(['backup.sql.gz', 'backup.sql.bz2', 'backup.sql'], $filenames);
 
         //Checks extensions
-        $extensions = collection($files)->extract('extension')->toArray();
+        $extensions = $files->extract('extension')->toList();
         $this->assertEquals(['sql.gz', 'sql.bz2', 'sql'], $extensions);
 
         //Checks for properties of each backup object
         foreach ($files as $file) {
-            $this->assertInstanceOf('Cake\ORM\Entity', $file);
+            $this->assertInstanceOf(Entity::class, $file);
             $this->assertTrue(is_positive($file->size));
-            $this->assertInstanceOf('Cake\I18n\FrozenTime', $file->datetime);
+            $this->assertInstanceOf(FrozenTime::class, $file->datetime);
         }
     }
 
@@ -148,8 +129,8 @@ class BackupManagerTest extends TestCase
     {
         $this->assertEquals([], $this->BackupManager->rotate(1));
 
-        //Creates some backups
         $this->createSomeBackups(true);
+
         $initialFiles = $this->BackupManager->index();
 
         //Keeps 2 backups. Only 1 backup was deleted
@@ -158,13 +139,12 @@ class BackupManagerTest extends TestCase
 
         //Now there are two files. Only uncompressed file was deleted
         $filesAfterRotate = $this->BackupManager->index();
-        $this->assertEquals(2, count($filesAfterRotate));
-        $this->assertEquals('gzip', $filesAfterRotate[0]->compression);
-        $this->assertEquals('bzip2', $filesAfterRotate[1]->compression);
+        $this->assertEquals(2, $filesAfterRotate->count());
+        $this->assertEquals(['gzip', 'bzip2'], $filesAfterRotate->extract('compression')->toList());
 
         //Gets the difference
-        $diff = array_udiff($initialFiles, $filesAfterRotate, function ($a, $b) {
-            return strcmp($a->filename, $b->filename);
+        $diff = array_udiff($initialFiles->toList(), $filesAfterRotate->toList(), function ($first, $second) {
+            return strcmp($first->filename, $second->filename);
         });
 
         //Again, only 1 backup was deleted
@@ -172,16 +152,10 @@ class BackupManagerTest extends TestCase
 
         //The difference is the same
         $this->assertEquals(collection($diff)->first(), collection($rotate)->first());
-    }
 
-    /**
-     * Test for `rotate()` method, with an invalid value
-     * @expectedException InvalidArgumentException
-     * @expectedExceptionMessage Invalid rotate value
-     * @test
-     */
-    public function testRotateWithInvalidValue()
-    {
+        //With an invalid value
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid rotate value');
         $this->BackupManager->rotate(-1);
     }
 
@@ -191,69 +165,36 @@ class BackupManagerTest extends TestCase
      */
     public function testSend()
     {
-        $to = 'recipient@example.com';
-
-        //Get a backup file
         $file = $this->createBackup();
+        $mimetype = mime_content_type($file);
+        $recipient = 'recipient@example.com';
 
-        $instance = new BackupManager;
-        $this->_email = $this->invokeMethod($instance, 'getEmailInstance', [$file, $to]);
-        $this->assertInstanceof('Cake\Mailer\Email', $this->_email);
+        $instance = new BackupManager();
+        $this->_email = $this->invokeMethod($instance, 'getEmailInstance', [$file, $recipient]);
+        $this->assertInstanceof(Email::class, $this->_email);
 
-        $sender = [Configure::read(DATABASE_BACKUP . '.mailSender') => Configure::read(DATABASE_BACKUP . '.mailSender')];
-        $this->assertEquals($sender, $this->_email->from());
-        $this->assertEquals([$to => $to], $this->_email->to());
-        $this->assertEquals('Database backup ' . basename($file) . ' from localhost', $this->_email->subject());
-        $this->assertEquals([basename($file) => [
-            'file' => $file,
-            'mimetype' => mime_content_type($file),
-        ]], $this->_email->attachments());
+        $this->assertEmailFrom(Configure::read('DatabaseBackup.mailSender'));
+        $this->assertEmailTo($recipient);
+        $this->assertEmailSubject('Database backup ' . basename($file) . ' from localhost');
+        $this->assertEmailAttachmentsContains(basename($file), compact('file', 'mimetype'));
+        $this->assertArrayKeysEqual(['headers', 'message'], $this->BackupManager->send($file, $recipient));
 
-        $send = $this->BackupManager->send($file, $to);
-        $this->assertNotEmpty($send);
-        $this->assertEquals(['headers', 'message'], array_keys($send));
-    }
-
-    /**
-     * Test for `send()` method, with empty sender
-     * @expectedException InvalidArgumentException
-     * @expectedExceptionMessageRegExp /^(Invalid email\: \"\"|The email set for \"from\" is empty\.)$/
-     * @test
-     */
-    public function testSendEmptySender()
-    {
-        //Get a backup file
-        $file = $this->createBackup();
-
-        Configure::write(DATABASE_BACKUP . '.mailSender', false);
-
-        $this->BackupManager->send($file, 'recipient@example.com');
+        //With an invalid sender
+        @unlink($file);
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid email set for "from". You passed "invalidSender".');
+        Configure::write('DatabaseBackup.mailSender', 'invalidSender');
+        $this->BackupManager->send($this->createBackup(), 'recipient@example.com');
     }
 
     /**
      * Test for `send()` method, with an invalid file
-     * @expectedException RuntimeException
-     * @expectedExceptionMessageRegExp /^File or directory `[\s\w\/:\\\-]+` not readable$/
      * @test
      */
     public function testSendInvalidFile()
     {
+        $this->expectException(NotReadableException::class);
+        $this->expectExceptionMessage('File or directory `' . Configure::read('DatabaseBackup.target') . DS . 'noExistingFile` is not readable');
         $this->BackupManager->send('noExistingFile', 'recipient@example.com');
-    }
-
-    /**
-     * Test for `send()` method, with an invalid sender
-     * @expectedException InvalidArgumentException
-     * @expectedExceptionMessageRegExp /^(Invalid email\: \"invalidSender\"|Invalid email set for \"from\"\. You passed \"invalidSender\"\.)$/
-     * @test
-     */
-    public function testSendInvalidSender()
-    {
-        //Get a backup file
-        $file = $this->createBackup();
-
-        Configure::write(DATABASE_BACKUP . '.mailSender', 'invalidSender');
-
-        $this->BackupManager->send($file, 'recipient@example.com');
     }
 }

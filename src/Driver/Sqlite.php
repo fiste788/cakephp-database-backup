@@ -13,7 +13,6 @@
  */
 namespace DatabaseBackup\Driver;
 
-use DatabaseBackup\BackupTrait;
 use DatabaseBackup\Driver\Driver;
 
 /**
@@ -21,11 +20,10 @@ use DatabaseBackup\Driver\Driver;
  */
 class Sqlite extends Driver
 {
-    use BackupTrait;
-
     /**
      * Gets the executable command to export the database
      * @return string
+     * @uses getBinary()
      * @uses getConfig()
      */
     protected function _exportExecutable()
@@ -36,6 +34,7 @@ class Sqlite extends Driver
     /**
      * Gets the executable command to import the database
      * @return string
+     * @uses getBinary()
      * @uses getConfig()
      */
     protected function _importExecutable()
@@ -51,11 +50,11 @@ class Sqlite extends Driver
      */
     public function beforeImport()
     {
-        $collection = $this->connection->schemaCollection();
+        $schemaCollection = $this->connection->schemaCollection();
 
         //Drops each table
-        foreach ($collection->listTables() as $table) {
-            array_map([$this->connection, 'execute'], $collection->describe($table)->dropSql($this->connection));
+        foreach ($schemaCollection->listTables() as $table) {
+            array_map([$this->connection, 'execute'], $schemaCollection->describe($table)->dropSql($this->connection));
         }
 
         //Needs disconnect and re-connect because the database schema has changed

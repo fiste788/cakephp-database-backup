@@ -13,6 +13,7 @@
 namespace DatabaseBackup\Test\TestCase\Shell;
 
 use Cake\Console\ConsoleIo;
+use Cake\Console\ConsoleOptionParser;
 use Cake\Core\Configure;
 use Cake\I18n\Number;
 use Cake\TestSuite\Stub\ConsoleOutput;
@@ -65,11 +66,11 @@ class BackupShellTest extends TestCase
     {
         parent::setUp();
 
-        $this->BackupExport = new BackupExport;
-        $this->BackupManager = new BackupManager;
+        $this->BackupExport = new BackupExport();
+        $this->BackupManager = new BackupManager();
 
-        $this->out = new ConsoleOutput;
-        $this->err = new ConsoleOutput;
+        $this->out = new ConsoleOutput();
+        $this->err = new ConsoleOutput();
         $io = new ConsoleIo($this->out, $this->err);
         $io->level(2);
 
@@ -121,7 +122,7 @@ class BackupShellTest extends TestCase
      */
     public function testExport()
     {
-        $target = preg_quote(Configure::read(DATABASE_BACKUP . '.target') . DS, '/');
+        $target = preg_quote(add_slash_term(Configure::read('DatabaseBackup.target')), '/');
 
         //Exports, without params
         $this->BackupShell->export();
@@ -215,7 +216,7 @@ class BackupShellTest extends TestCase
 
         //Creates some backups
         $this->createSomeBackups(true);
-        $backups = $this->BackupManager->index();
+        $backups = $this->BackupManager->index()->toList();
 
         $this->BackupShell->index();
 
@@ -246,21 +247,21 @@ class BackupShellTest extends TestCase
             'backup.sql.gz',
             'sql.gz',
             'gzip',
-            Number::toReadableSize($backups[0]->size),
-            (string)$backups[0]->datetime,
+            Number::toReadableSize($backups[0]->get('size')),
+            (string)$backups[0]->get('datetime'),
         ], next($output));
         $this->assertEquals([
             'backup.sql.bz2',
             'sql.bz2',
             'bzip2',
-            Number::toReadableSize($backups[1]->size),
-            (string)$backups[1]->datetime,
+            Number::toReadableSize($backups[1]->get('size')),
+            (string)$backups[1]->get('datetime'),
         ], next($output));
         $this->assertEquals([
             'backup.sql',
             'sql',
-            Number::toReadableSize($backups[2]->size),
-            (string)$backups[2]->datetime,
+            Number::toReadableSize($backups[2]->get('size')),
+            (string)$backups[2]->get('datetime'),
         ], next($output));
         $this->assertRegExp('/^[+\-]+$/', next($output));
 
@@ -273,7 +274,7 @@ class BackupShellTest extends TestCase
      */
     public function testImport()
     {
-        $target = preg_quote(Configure::read(DATABASE_BACKUP . '.target') . DS, '/');
+        $target = preg_quote(add_slash_term(Configure::read('DatabaseBackup.target')), '/');
 
         //Exports a database
         $backup = $this->BackupExport->filename('backup.sql')->export();
@@ -351,7 +352,7 @@ class BackupShellTest extends TestCase
      */
     public function testSend()
     {
-        $target = preg_quote(Configure::read(DATABASE_BACKUP . '.target') . DS, '/');
+        $target = preg_quote(add_slash_term(Configure::read('DatabaseBackup.target')), '/');
 
         //Gets a backup file
         $file = $this->createBackup();
@@ -377,7 +378,7 @@ class BackupShellTest extends TestCase
      */
     public function testSendWithoutSenderInConfiguration()
     {
-        Configure::write(DATABASE_BACKUP . '.mailSender', false);
+        Configure::write('DatabaseBackup.mailSender', false);
 
         $this->BackupShell->send('file.sql', 'recipient@example.com');
     }
@@ -390,7 +391,7 @@ class BackupShellTest extends TestCase
     {
         $parser = $this->BackupShell->getOptionParser();
 
-        $this->assertInstanceOf('Cake\Console\ConsoleOptionParser', $parser);
+        $this->assertInstanceOf(ConsoleOptionParser::class, $parser);
 
         $subCommands = [
             'delete_all',

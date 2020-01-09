@@ -11,12 +11,8 @@
  * @license     https://opensource.org/licenses/mit-license.php MIT License
  * @see         https://github.com/mirko-pagliai/cakephp-database-backup/wiki/Configuration
  */
-use Cake\Core\Configure;
 
-//Sets the default DatabaseBackup name
-if (!defined('DATABASE_BACKUP')) {
-    define('DATABASE_BACKUP', 'DatabaseBackup');
-}
+use Cake\Core\Configure;
 
 //Sets the redirect to `/dev/null`. This string can be concatenated to shell commands
 if (!defined('REDIRECT_TO_DEV_NULL')) {
@@ -25,38 +21,35 @@ if (!defined('REDIRECT_TO_DEV_NULL')) {
 
 //Binaries
 foreach (['bzip2', 'gzip', 'mysql', 'mysqldump', 'pg_dump', 'pg_restore', 'sqlite3'] as $binary) {
-    if (!Configure::check(DATABASE_BACKUP . '.binaries.' . $binary)) {
-        Configure::write(DATABASE_BACKUP . '.binaries.' . $binary, which($binary));
+    if (!Configure::check('DatabaseBackup.binaries.' . $binary)) {
+        Configure::write('DatabaseBackup.binaries.' . $binary, which($binary));
     }
 }
 
 //Chmod for backups.
 //This works only on Unix
-if (!Configure::check(DATABASE_BACKUP . '.chmod')) {
-    Configure::write(DATABASE_BACKUP . '.chmod', 0664);
+if (!Configure::check('DatabaseBackup.chmod')) {
+    Configure::write('DatabaseBackup.chmod', 0664);
 }
 
 //Database connection
-if (!Configure::check(DATABASE_BACKUP . '.connection')) {
-    Configure::write(DATABASE_BACKUP . '.connection', 'default');
+if (!Configure::check('DatabaseBackup.connection')) {
+    Configure::write('DatabaseBackup.connection', 'default');
 }
 
 //Redirects stderr to `/dev/null`. This suppresses the output of executed commands
-if (!Configure::check(DATABASE_BACKUP . '.redirectStderrToDevNull')) {
-    Configure::write(DATABASE_BACKUP . '.redirectStderrToDevNull', true);
+if (!Configure::check('DatabaseBackup.redirectStderrToDevNull')) {
+    Configure::write('DatabaseBackup.redirectStderrToDevNull', true);
 }
 
 //Default target directory
-if (!Configure::check(DATABASE_BACKUP . '.target')) {
-    Configure::write(DATABASE_BACKUP . '.target', ROOT . DS . 'backups');
+if (!Configure::check('DatabaseBackup.target')) {
+    Configure::write('DatabaseBackup.target', ROOT . DS . 'backups');
 }
 
 //Checks for the target directory
-$target = Configure::read(DATABASE_BACKUP . '.target');
-
-if (!file_exists($target)) {
-    @mkdir($target);
-}
+$target = Configure::read('DatabaseBackup.target');
+@mkdir($target);
 
 if (!is_writeable($target)) {
     trigger_error(sprintf('Directory %s not writeable', $target), E_USER_ERROR);

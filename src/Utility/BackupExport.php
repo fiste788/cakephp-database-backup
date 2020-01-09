@@ -16,7 +16,7 @@ namespace DatabaseBackup\Utility;
 use Cake\Core\Configure;
 use DatabaseBackup\BackupTrait;
 use InvalidArgumentException;
-use RuntimeException;
+use Symfony\Component\Filesystem\Filesystem;
 
 /**
  * Utility to export databases
@@ -26,13 +26,14 @@ class BackupExport
     use BackupTrait;
 
     /**
+     * `BackupManager` instance
      * @var \DatabaseBackup\Utility\BackupManager
      */
     public $BackupManager;
 
     /**
      * Compression type
-     * @var bool|string|null
+     * @var string|null
      */
     protected $compression = null;
 
@@ -58,9 +59,9 @@ class BackupExport
 
     /**
      * Recipient of the email, if you want to send the backup via mail
-     * @var bool|string
+     * @var string|null
      */
-    protected $emailRecipient = false;
+    protected $emailRecipient = null;
 
     /**
      * Filename extension
@@ -89,21 +90,19 @@ class BackupExport
      */
     public function __construct()
     {
-        $this->BackupManager = new BackupManager;
-
         $connection = $this->getConnection();
-
+        $this->BackupManager = new BackupManager();
         $this->config = $connection->config();
         $this->driver = $this->getDriver($connection);
     }
 
     /**
      * Sets the compression
-     * @param bool|string $compression Compression type as string. Supported
-     *  values are `bzip2` and `gzip`. Use `false` for no compression
+     * @param string|null $compression Compression type name. Supported
+     *  values are `bzip2` and `gzip`. Use `null` for no compression
      * @return \DatabaseBackup\Utility\BackupExport
      * @see https://github.com/mirko-pagliai/cakephp-database-backup/wiki/How-to-use-the-BackupExport-utility#compression
-     * @throws InvalidArgumentException
+     * @throws \InvalidArgumentException
      * @uses getValidCompressions()
      * @uses $compression
      * @uses $defaultExtension
@@ -111,16 +110,16 @@ class BackupExport
      */
     public function compression($compression)
     {
+        $this->extension = $this->defaultExtension;
+
         if ($compression) {
             $this->extension = array_search($compression, $this->getValidCompressions());
-
-            if (!$this->extension) {
-                throw new InvalidArgumentException(__d('database_backup', 'Invalid compression type'));
-            }
-        } else {
-            $this->extension = $this->defaultExtension;
+            is_true_or_fail(
+                $this->extension,
+                __d('database_backup', 'Invalid compression type'),
+                InvalidArgumentException::class
+            );
         }
-
         $this->compression = $compression;
 
         return $this;
@@ -134,8 +133,9 @@ class BackupExport
      *  contain patterns
      * @return \DatabaseBackup\Utility\BackupExport
      * @see https://github.com/mirko-pagliai/cakephp-database-backup/wiki/How-to-use-the-BackupExport-utility#filename
-     * @throws InvalidArgumentException
-     * @throws RuntimeException
+     * @throws \Exception
+     * @throws \InvalidArgumentException
+     * @throws \Tools\Exception\NotWritableException
      * @uses compression()
      * @uses $config
      * @uses $filename
@@ -143,12 +143,7 @@ class BackupExport
     public function filename($filename)
     {
         //Replaces patterns
-        $filename = str_replace([
-            '{$DATABASE}',
-            '{$DATETIME}',
-            '{$HOSTNAME}',
-            '{$TIMESTAMP}',
-        ], [
+        $filename = str_replace(['{$DATABASE}', '{$DATETIME}', '{$HOSTNAME}', '{$TIMESTAMP}'], [
             pathinfo($this->config['database'], PATHINFO_FILENAME),
             date('YmdHis'),
             empty($this->config['host']) ? 'localhost' : $this->config['host'],
@@ -156,19 +151,15 @@ class BackupExport
         ], $filename);
 
         $filename = $this->getAbsolutePath($filename);
-
-        if (!is_writable(dirname($filename))) {
-            throw new RuntimeException(__d('database_backup', 'File or directory `{0}` not writable', dirname($filename)));
-        }
-
-        if (file_exists($filename)) {
-            throw new RuntimeException(__d('database_backup', 'File `{0}` already exists', $filename));
-        }
+        is_writable_or_fail(dirname($filename));
+        is_true_or_fail(!file_exists($filename), __d('database_backup', 'File `{0}` already exists', $filename));
 
         //Checks for extension
-        if (!$this->getExtension($filename)) {
-            throw new InvalidArgumentException(__d('database_backup', 'Invalid file extension'));
-        }
+        is_true_or_fail(
+            $this->getExtension($filename),
+            __d('database_backup', 'Invalid file extension'),
+            InvalidArgumentException::class
+        );
 
         //Sets the compression
         $this->compression($this->getCompression($filename));
@@ -195,12 +186,12 @@ class BackupExport
 
     /**
      * Sets the recipient's email address to send the backup file via mail
-     * @param bool|string $recipient Recipient's email address or `false` to disable
+     * @param string|null $recipient Recipient's email address or `null` to disable
      * @return \DatabaseBackup\Utility\BackupExport
      * @since 1.1.0
      * @uses $emailRecipient
      */
-    public function send($recipient = false)
+    public function send($recipient = null)
     {
         $this->emailRecipient = $recipient;
 
@@ -222,32 +213,19 @@ class BackupExport
     public function export()
     {
         if (empty($this->filename)) {
-            if (empty($this->extension)) {
-                $this->extension = $this->defaultExtension;
-            }
-
+            $this->extension = $this->extension ?: $this->defaultExtension;
             $this->filename(sprintf('backup_{$DATABASE}_{$DATETIME}.%s', $this->extension));
         }
 
-        //This allows the filename to be set again with a next call of this
-        //  method
+        //This allows the filename to be set again with a next call of this method
         $filename = $this->filename;
         unset($this->filename);
 
         $this->driver->export($filename);
+        (new Filesystem())->chmod($filename, Configure::read('DatabaseBackup.chmod'));
 
-        if (!IS_WIN) {
-            chmod($filename, Configure::read(DATABASE_BACKUP . '.chmod'));
-        }
-
-        if ($this->emailRecipient) {
-            $this->BackupManager->send($filename, $this->emailRecipient);
-        }
-
-        //Rotates backups
-        if ($this->rotate) {
-            $this->BackupManager->rotate($this->rotate);
-        }
+        $this->emailRecipient ? $this->BackupManager->send($filename, $this->emailRecipient) : null;
+        $this->rotate ? $this->BackupManager->rotate($this->rotate) : null;
 
         return $filename;
     }

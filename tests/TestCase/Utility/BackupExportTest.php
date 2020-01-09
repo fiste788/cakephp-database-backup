@@ -13,38 +13,38 @@
 namespace DatabaseBackup\Test\TestCase\Utility;
 
 use Cake\Core\Configure;
+use Cake\Database\Driver\Mysql as CakeMySql;
 use Cake\Log\Log;
+use DatabaseBackup\Driver\Mysql;
 use DatabaseBackup\TestSuite\TestCase;
 use DatabaseBackup\Utility\BackupExport;
-use Tools\ReflectionTrait;
+use DatabaseBackup\Utility\BackupManager;
+use InvalidArgumentException;
+use Tools\Exception\NotWritableException;
 
 /**
  * BackupExportTest class
  */
 class BackupExportTest extends TestCase
 {
-    use ReflectionTrait;
-
     /**
      * @var \DatabaseBackup\Utility\BackupExport
      */
     protected $BackupExport;
 
     /**
-     * Setup the test case, backup the static object values so they can be
-     * restored. Specifically backs up the contents of Configure and paths in
-     *  App if they have not already been backed up
+     * Called before every test method
      * @return void
      */
     public function setUp()
     {
         parent::setUp();
 
-        $this->BackupExport = new BackupExport;
+        $this->BackupExport = new BackupExport();
 
         //Mocks the `send()` method of `BackupManager` class, so that it writes
         //  on the debug log instead of sending a real mail
-        $this->BackupExport->BackupManager = $this->getMockBuilder(get_class($this->BackupExport->BackupManager))
+        $this->BackupExport->BackupManager = $this->getMockBuilder(BackupManager::class)
             ->setMethods(['send'])
             ->getMock();
 
@@ -59,15 +59,14 @@ class BackupExportTest extends TestCase
     }
 
     /**
-     * Teardown any static object changes and restore them
+     * Called after every test method
      * @return void
      */
     public function tearDown()
     {
         parent::tearDown();
 
-        //Deletes debug log
-        @unlink(LOGS . 'debug.log');
+        @unlink_recursive(LOGS, 'empty');
     }
 
     /**
@@ -76,17 +75,16 @@ class BackupExportTest extends TestCase
      */
     public function testConstruct()
     {
-        $this->assertInstanceof(DATABASE_BACKUP . '\Utility\BackupManager', $this->BackupExport->BackupManager);
         $this->assertNull($this->getProperty($this->BackupExport, 'compression'));
 
         $config = $this->getProperty($this->BackupExport, 'config');
         $this->assertEquals($config['scheme'], 'mysql');
         $this->assertEquals($config['database'], 'test');
-        $this->assertEquals($config['driver'], 'Cake\Database\Driver\Mysql');
+        $this->assertEquals($config['driver'], CakeMySql::class);
 
         $this->assertEquals('sql', $this->getProperty($this->BackupExport, 'defaultExtension'));
-        $this->assertInstanceof(DATABASE_BACKUP . '\Driver\Mysql', $this->getProperty($this->BackupExport, 'driver'));
-        $this->assertFalse($this->getProperty($this->BackupExport, 'emailRecipient'));
+        $this->assertInstanceof(Mysql::class, $this->getProperty($this->BackupExport, 'driver'));
+        $this->assertNull($this->getProperty($this->BackupExport, 'emailRecipient'));
         $this->assertNull($this->getProperty($this->BackupExport, 'extension'));
         $this->assertNull($this->getProperty($this->BackupExport, 'filename'));
         $this->assertEquals(0, $this->getProperty($this->BackupExport, 'rotate'));
@@ -102,16 +100,10 @@ class BackupExportTest extends TestCase
         $this->BackupExport->compression('bzip2');
         $this->assertEquals('bzip2', $this->getProperty($this->BackupExport, 'compression'));
         $this->assertEquals('sql.bz2', $this->getProperty($this->BackupExport, 'extension'));
-    }
 
-    /**
-     * Test for `compression()` method, with an invalid type
-     * @expectedException InvalidArgumentException
-     * @expectedExceptionMessage Invalid compression type
-     * @test
-     */
-    public function testCompressionWithInvalidType()
-    {
+        //With an invalid type
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid compression type');
         $this->BackupExport->compression('invalidType');
     }
 
@@ -125,7 +117,7 @@ class BackupExportTest extends TestCase
     {
         $this->BackupExport->filename('backup.sql.bz2');
         $this->assertEquals(
-            $this->BackupExport->getTarget() . DS . 'backup.sql.bz2',
+            add_slash_term(Configure::read('DatabaseBackup.target')) . 'backup.sql.bz2',
             $this->getProperty($this->BackupExport, 'filename')
         );
         $this->assertEquals('bzip2', $this->getProperty($this->BackupExport, 'compression'));
@@ -143,7 +135,7 @@ class BackupExportTest extends TestCase
 
         //Filename with `{$DATETIME}` pattern
         $this->BackupExport->filename('{$DATETIME}.sql');
-        $this->assertRegExp('/^[0-9]{14}\.sql$/', basename($this->getProperty($this->BackupExport, 'filename')));
+        $this->assertRegExp('/^\d{14}\.sql$/', basename($this->getProperty($this->BackupExport, 'filename')));
 
         //Filename with `{$HOSTNAME}` pattern
         $this->BackupExport->filename('{$HOSTNAME}.sql');
@@ -151,41 +143,15 @@ class BackupExportTest extends TestCase
 
         //Filename with `{$TIMESTAMP}` pattern
         $this->BackupExport->filename('{$TIMESTAMP}.sql');
-        $this->assertRegExp('/^[0-9]{10}\.sql$/', basename($this->getProperty($this->BackupExport, 'filename')));
-    }
+        $this->assertRegExp('/^\d{10}\.sql$/', basename($this->getProperty($this->BackupExport, 'filename')));
 
-    /**
-     * Test for `filename()` method, with a file that already exists
-     * @expectedException RuntimeException
-     * @expectedExceptionMessageRegExp /^File `[\s\w\/:\\\-]+backup\.sql` already exists$/
-     */
-    public function testFilenameAlreadyExists()
-    {
-        $this->BackupExport->filename('backup.sql')->export();
+        //With a no writable directory
+        $this->expectException(NotWritableException::class);
+        $this->expectExceptionMessage('File or directory `' . $this->BackupExport->getAbsolutePath('noExistingDir') . '` is not writable');
 
-        //Again, same filename
-        $this->BackupExport->filename('backup.sql')->export();
-    }
-
-    /**
-     * Test for `filename()` method, with a no writable directory
-     * @expectedException RuntimeException
-     * @expectedExceptionMessageRegExp /^File or directory `[\s\w\/:\\\-]+` not writable$/
-     * @test
-     */
-    public function testFilenameNotWritableDirectory()
-    {
-        $this->BackupExport->filename('noExistingDir' . DS . 'backup.sql');
-    }
-
-    /**
-     * Test for `filename()` method, with invalid extension
-     * @expectedException InvalidArgumentException
-     * @expectedExceptionMessage Invalid file extension
-     * @test
-     */
-    public function testFilenameWithInvalidExtension()
-    {
+        //With invalid extension
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid file extension');
         $this->BackupExport->filename('backup.txt');
     }
 
@@ -197,16 +163,10 @@ class BackupExportTest extends TestCase
     {
         $this->BackupExport->rotate(10);
         $this->assertEquals(10, $this->getProperty($this->BackupExport, 'rotate'));
-    }
 
-    /**
-     * Test for `rotate()` method, with an invalid value
-     * @expectedException InvalidArgumentException
-     * @expectedExceptionMessage Invalid rotate value
-     * @test
-     */
-    public function testRotateWithInvalidValue()
-    {
+        //With an invalid value
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid rotate value');
         $this->BackupExport->rotate(-1)->export();
     }
 
@@ -216,11 +176,10 @@ class BackupExportTest extends TestCase
      */
     public function testSend()
     {
-        $recipient = 'recipient@example.com';
-
         $this->BackupExport->send();
-        $this->assertFalse($this->getProperty($this->BackupExport, 'emailRecipient'));
+        $this->assertNull($this->getProperty($this->BackupExport, 'emailRecipient'));
 
+        $recipient = 'recipient@example.com';
         $this->BackupExport->send($recipient);
         $this->assertEquals($recipient, $this->getProperty($this->BackupExport, 'emailRecipient'));
     }
@@ -233,12 +192,12 @@ class BackupExportTest extends TestCase
     {
         $filename = $this->BackupExport->export();
         $this->assertFileExists($filename);
-        $this->assertRegExp('/^backup_test_[0-9]{14}\.sql$/', basename($filename));
+        $this->assertRegExp('/^backup_test_\d{14}\.sql$/', basename($filename));
 
         //Exports with `compression()`
         $filename = $this->BackupExport->compression('bzip2')->export();
         $this->assertFileExists($filename);
-        $this->assertRegExp('/^backup_test_[0-9]{14}\.sql\.bz2$/', basename($filename));
+        $this->assertRegExp('/^backup_test_\d{14}\.sql\.bz2$/', basename($filename));
 
         //Exports with `filename()`
         $filename = $this->BackupExport->filename('backup.sql.bz2')->export();
@@ -250,17 +209,21 @@ class BackupExportTest extends TestCase
         $filename = $this->BackupExport->filename('exportWithSend.sql')->send($recipient)->export();
         $log = file_get_contents(LOGS . 'debug.log');
         $this->assertTextContains('Called `send()` with args: `' . $filename . '`, `' . $recipient . '`', $log);
+
+        //With a file that already exists
+        $this->expectExceptionMessage('File `' . $this->BackupExport->getAbsolutePath('backup.sql.bz2') . '` already exists');
+        $this->BackupExport->filename('backup.sql.bz2')->export();
     }
 
     /**
      * Test for `export()` method, with a different chmod
-     * @group onlyUnix
+     * @requires OS Linux
      * @test
      */
     public function testExportWithDifferendChmod()
     {
-        Configure::write(DATABASE_BACKUP . '.chmod', 0777);
+        Configure::write('DatabaseBackup.chmod', 0777);
         $filename = $this->BackupExport->filename('exportWithDifferentChmod.sql')->export();
-        $this->assertEquals('0777', substr(sprintf('%o', fileperms($filename)), -4));
+        $this->assertFilePerms(0777, $filename);
     }
 }

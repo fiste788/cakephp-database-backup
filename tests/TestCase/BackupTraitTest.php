@@ -13,9 +13,14 @@
 namespace DatabaseBackup\Test\TestCase;
 
 use Cake\Core\Configure;
+use Cake\Database\Connection;
+use Cake\Database\Driver\Mysql as CakeMysql;
 use Cake\Datasource\ConnectionManager;
+use Cake\Datasource\Exception\MissingDatasourceConfigException;
 use DatabaseBackup\BackupTrait;
+use DatabaseBackup\Driver\Mysql;
 use DatabaseBackup\TestSuite\TestCase;
+use InvalidArgumentException;
 
 /**
  * BackupTraitTest class
@@ -34,8 +39,8 @@ class BackupTraitTest extends TestCase
      * @var array
      */
     public $fixtures = [
-        'core.articles',
-        'core.comments',
+        'core.Articles',
+        'core.Comments',
     ];
 
     /**
@@ -44,34 +49,10 @@ class BackupTraitTest extends TestCase
      */
     public function testGetAbsolutePath()
     {
-        $result = $this->getAbsolutePath('/file.txt');
-        $this->assertEquals('/file.txt', $result);
-
-        $result = $this->getAbsolutePath('file.txt');
-        $this->assertEquals(Configure::read(DATABASE_BACKUP . '.target') . DS . 'file.txt', $result);
-
-        $result = $this->getAbsolutePath(Configure::read(DATABASE_BACKUP . '.target') . DS . 'file.txt');
-        $this->assertEquals(Configure::read(DATABASE_BACKUP . '.target') . DS . 'file.txt', $result);
-    }
-
-    /**
-     * Test for `getBinary()` method
-     * @test
-     */
-    public function testGetBinary()
-    {
-        $this->assertEquals(which('mysql'), $this->getBinary('mysql'));
-    }
-
-    /**
-     * Test for `getBinary()` method, with a binary not available
-     * @expectedException RuntimeException
-     * @expectedExceptionMessage Expected configuration key "DatabaseBackup.binaries.noExisting" not found.
-     * @test
-     */
-    public function testGetBinaryNotAvailable()
-    {
-        $this->getBinary('noExisting');
+        $this->assertEquals('/file.txt', $this->getAbsolutePath('/file.txt'));
+        $this->assertEquals(Configure::read('DatabaseBackup.target') . DS . 'file.txt', $this->getAbsolutePath('file.txt'));
+        $expected = Configure::read('DatabaseBackup.target') . DS . 'file.txt';
+        $this->assertEquals($expected, $this->getAbsolutePath(Configure::read('DatabaseBackup.target') . DS . 'file.txt'));
     }
 
     /**
@@ -80,14 +61,12 @@ class BackupTraitTest extends TestCase
      */
     public function testGetCompression()
     {
-        $compressions = [
+        foreach ([
             'backup.sql' => false,
             'backup.sql.bz2' => 'bzip2',
             'backup.sql.gz' => 'gzip',
             'text.txt' => null,
-        ];
-
-        foreach ($compressions as $filename => $expectedCompression) {
+        ] as $filename => $expectedCompression) {
             $this->assertEquals($expectedCompression, $this->getCompression($filename));
         }
     }
@@ -102,23 +81,17 @@ class BackupTraitTest extends TestCase
 
         foreach ([
             null,
-            Configure::read(DATABASE_BACKUP . '.connection'),
+            Configure::read('DatabaseBackup.connection'),
             'fake',
         ] as $name) {
             $connection = $this->getConnection($name);
-            $this->assertInstanceof('Cake\Database\Connection', $connection);
-            $this->assertInstanceof('Cake\Database\Driver\Mysql', $connection->driver());
+            $this->assertInstanceof(Connection::class, $connection);
+            $this->assertInstanceof(CakeMysql::class, $connection->getDriver());
         }
-    }
 
-    /**
-     * Test for `getConnection()` method, with an invalid connection
-     * @expectedException \Cake\Datasource\Exception\MissingDatasourceConfigException
-     * @expectedExceptionMessage The datasource configuration "noExisting" was not found.
-     * @test
-     */
-    public function testGetConnectionInvalidConnection()
-    {
+        //With an invalid connection
+        $this->expectException(MissingDatasourceConfigException::class);
+        $this->expectExceptionMessage('The datasource configuration "noExisting" was not found');
         $this->getConnection('noExisting');
     }
 
@@ -128,11 +101,19 @@ class BackupTraitTest extends TestCase
      */
     public function testGetDriver()
     {
-        $driver = $this->getDriver(ConnectionManager::get('test'));
-        $this->assertInstanceof(DATABASE_BACKUP . '\Driver\Mysql', $driver);
+        foreach ([ConnectionManager::get('test'), null] as $driver) {
+            $this->assertInstanceof(Mysql::class, $this->getDriver($driver));
+        }
 
-        $driver = $this->getDriver();
-        $this->assertInstanceof(DATABASE_BACKUP . '\Driver\Mysql', $driver);
+        //With a no existing driver
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The `InvalidArgumentException` driver does not exist');
+        $connection = $this->getMockBuilder(get_class($this->getConnection()))
+            ->setMethods(['getDriver'])
+            ->setConstructorArgs([$this->getConnection()->config()])
+            ->getMock();
+        $connection->method('getDriver')->will($this->returnValue(new InvalidArgumentException()));
+        $this->getDriver($connection);
     }
 
     /**
@@ -141,7 +122,7 @@ class BackupTraitTest extends TestCase
      */
     public function testGetExtension()
     {
-        $extensions = [
+        foreach ([
             'backup.sql' => 'sql',
             'backup.sql.bz2' => 'sql.bz2',
             'backup.sql.gz' => 'sql.gz',
@@ -151,9 +132,7 @@ class BackupTraitTest extends TestCase
             'text.txt' => null,
             'text' => null,
             '.txt' => null,
-        ];
-
-        foreach ($extensions as $filename => $expectedExtension) {
+        ] as $filename => $expectedExtension) {
             $this->assertEquals($expectedExtension, $this->getExtension($filename));
         }
     }
@@ -166,24 +145,16 @@ class BackupTraitTest extends TestCase
      */
     public function testGetDriverNoExistingDriver()
     {
+        $method = method_exists($this->getConnection(), 'getDriver') ? 'getDriver' : 'driver';
+
         $connection = $this->getMockBuilder(get_class($this->getConnection()))
-            ->setMethods(['driver'])
+            ->setMethods([$method])
             ->setConstructorArgs([$this->getConnection()->config()])
             ->getMock();
 
-        $connection->method('driver')
-             ->will($this->returnValue(new \stdClass()));
+        $connection->method($method)->will($this->returnValue(new \stdClass()));
 
         $this->getDriver($connection);
-    }
-
-    /**
-     * Test for `getTarget()` method
-     * @test
-     */
-    public function testGetTarget()
-    {
-        $this->assertEquals(Configure::read(DATABASE_BACKUP . '.target'), $this->getTarget());
     }
 
     /**
@@ -193,14 +164,5 @@ class BackupTraitTest extends TestCase
     public function testGetValidCompressions()
     {
         $this->assertNotEmpty($this->getValidCompressions());
-    }
-
-    /**
-     * Test for `getValidExtensions()` method
-     * @test
-     */
-    public function testGetValidExtensions()
-    {
-        $this->assertNotEmpty($this->getValidExtensions());
     }
 }

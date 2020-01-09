@@ -13,18 +13,18 @@
 namespace DatabaseBackup\Test\TestCase\Utility;
 
 use Cake\Core\Configure;
+use DatabaseBackup\Driver\Mysql;
 use DatabaseBackup\TestSuite\TestCase;
 use DatabaseBackup\Utility\BackupExport;
 use DatabaseBackup\Utility\BackupImport;
-use Tools\ReflectionTrait;
+use InvalidArgumentException;
+use Tools\Exception\NotReadableException;
 
 /**
  * BackupImportTest class
  */
 class BackupImportTest extends TestCase
 {
-    use ReflectionTrait;
-
     /**
      * @var \DatabaseBackup\Utility\BackupExport
      */
@@ -36,17 +36,15 @@ class BackupImportTest extends TestCase
     protected $BackupImport;
 
     /**
-     * Setup the test case, backup the static object values so they can be
-     * restored. Specifically backs up the contents of Configure and paths in
-     *  App if they have not already been backed up
+     * Called before every test method
      * @return void
      */
     public function setUp()
     {
         parent::setUp();
 
-        $this->BackupExport = new BackupExport;
-        $this->BackupImport = new BackupImport;
+        $this->BackupExport = new BackupExport();
+        $this->BackupImport = new BackupImport();
     }
 
     /**
@@ -55,7 +53,7 @@ class BackupImportTest extends TestCase
      */
     public function testConstruct()
     {
-        $this->assertInstanceof(DATABASE_BACKUP . '\Driver\Mysql', $this->getProperty($this->BackupImport, 'driver'));
+        $this->assertInstanceof(Mysql::class, $this->getProperty($this->BackupImport, 'driver'));
         $this->assertNull($this->getProperty($this->BackupImport, 'filename'));
     }
 
@@ -67,48 +65,32 @@ class BackupImportTest extends TestCase
     {
         //Creates a `sql` backup
         $backup = $this->BackupExport->filename('backup.sql')->export();
-
         $this->BackupImport->filename($backup);
         $this->assertEquals($backup, $this->getProperty($this->BackupImport, 'filename'));
 
         //Creates a `sql.bz2` backup
         $backup = $this->BackupExport->filename('backup.sql.bz2')->export();
-
         $this->BackupImport->filename($backup);
         $this->assertEquals($backup, $this->getProperty($this->BackupImport, 'filename'));
 
         //Creates a `sql.gz` backup
         $backup = $this->BackupExport->filename('backup.sql.gz')->export();
-
         $this->BackupImport->filename($backup);
         $this->assertEquals($backup, $this->getProperty($this->BackupImport, 'filename'));
 
-        //Relative path
+        //With a relative path
         $this->BackupImport->filename(basename($backup));
         $this->assertEquals($backup, $this->getProperty($this->BackupImport, 'filename'));
-    }
 
-    /**
-     * Test for `filename()` method, with invalid directory
-     * @expectedException RuntimeException
-     * @expectedExceptionMessageRegExp /^File or directory `[\s\w\/:\\\-]+backup\.sql` not readable$/
-     * @test
-     */
-    public function testFilenameWithInvalidDirectory()
-    {
+        //With an invalid directory
+        $this->expectException(NotReadableException::class);
+        $this->expectExceptionMessage('File or directory `' . $this->BackupExport->getAbsolutePath('noExistingDir' . DS . 'backup.sql') . '` is not readable');
         $this->BackupImport->filename('noExistingDir' . DS . 'backup.sql');
-    }
 
-    /**
-     * Test for `filename()` method, with invalid extension
-     * @expectedException InvalidArgumentException
-     * @expectedExceptionMessage Invalid file extension
-     * @test
-     */
-    public function testFilenameWithInvalidExtension()
-    {
-        file_put_contents(Configure::read(DATABASE_BACKUP . '.target') . DS . 'backup.txt', null);
-
+        //With invalid extension
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid file extension');
+        file_put_contents(Configure::read('DatabaseBackup.target') . DS . 'backup.txt', null);
         $this->BackupImport->filename('backup.txt');
     }
 
@@ -119,32 +101,23 @@ class BackupImportTest extends TestCase
     public function testImport()
     {
         //Exports and imports with no compression
-        $backup = $this->BackupExport->compression(false)->export();
+        $backup = $this->BackupExport->compression(null)->export();
         $filename = $this->BackupImport->filename($backup)->import();
-
         $this->assertRegExp('/^backup_test_[0-9]{14}\.sql$/', basename($filename));
 
         //Exports and imports with `bzip2` compression
         $backup = $this->BackupExport->compression('bzip2')->export();
         $filename = $this->BackupImport->filename($backup)->import();
-
         $this->assertRegExp('/^backup_test_[0-9]{14}\.sql\.bz2$/', basename($filename));
 
         //Exports and imports with `gzip` compression
         $backup = $this->BackupExport->compression('gzip')->export();
         $filename = $this->BackupImport->filename($backup)->import();
-
         $this->assertRegExp('/^backup_test_[0-9]{14}\.sql\.gz$/', basename($filename));
-    }
 
-    /**
-     * Test for `import()` method, without a filename
-     * @expectedException RuntimeException
-     * @expectedExceptionMessage You must first set the filename
-     * @test
-     */
-    public function testImportWithoutFilename()
-    {
+        //Without filename
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('You must first set the filename');
         $this->BackupImport->import();
     }
 }

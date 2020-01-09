@@ -10,12 +10,14 @@
  * @link        https://github.com/mirko-pagliai/cakephp-database-backup
  * @license     https://opensource.org/licenses/mit-license.php MIT License
  */
+
 use Cake\Cache\Cache;
 use Cake\Core\Configure;
 use Cake\Core\Plugin;
 use Cake\Datasource\ConnectionManager;
 use Cake\Log\Log;
 use Cake\Mailer\Email;
+use Cake\Mailer\TransportFactory;
 use Cake\Routing\DispatcherFactory;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
@@ -36,8 +38,8 @@ define('WEBROOT_DIR', 'webroot');
 define('WWW_ROOT', APP . 'webroot' . DS);
 define('TMP', sys_get_temp_dir() . DS . 'cakephp-database-backup' . DS);
 define('CONFIG', APP . 'config' . DS);
-define('CACHE', TMP);
-define('LOGS', TMP);
+define('CACHE', TMP . 'cache' . DS);
+define('LOGS', TMP . 'cakephp_log' . DS);
 define('SESSIONS', TMP . 'sessions' . DS);
 
 @mkdir(TMP);
@@ -51,7 +53,7 @@ require CORE_PATH . 'config' . DS . 'bootstrap.php';
 
 //Disables deprecation warnings for CakePHP 3.6
 if (version_compare(Configure::version(), '3.6', '>=')) {
-    error_reporting(E_ALL ^ E_USER_DEPRECATED);
+    error_reporting(E_ALL & ~E_USER_DEPRECATED);
 }
 
 date_default_timezone_set('UTC');
@@ -72,7 +74,7 @@ Configure::write('App', [
     'cssBaseUrl' => 'css/',
     'paths' => [
         'plugins' => [APP . 'Plugin' . DS],
-    ]
+    ],
 ]);
 
 Cache::config([
@@ -100,7 +102,7 @@ if (version_compare(Configure::version(), '3.4.13', '>=')) {
 }
 
 if (!getenv('db_dsn')) {
-    putenv('db_dsn=mysql://travis:@localhost/test');
+    putenv('db_dsn=mysql://travis@localhost/test');
 }
 if (!getenv('db_dsn_postgres')) {
     putenv('db_dsn_postgres=postgres://postgres@localhost/travis_ci_test');
@@ -130,7 +132,15 @@ Log::config('debug', [
 DispatcherFactory::add('Routing');
 DispatcherFactory::add('ControllerFactory');
 
-Email::configTransport('debug', ['className' => 'Debug']);
-Email::config('default', ['transport' => 'debug', 'log' => true]);
+$transportName = 'debug';
+$transportConfig = ['className' => 'Debug'];
+if (class_exists(TransportFactory::class)) {
+    TransportFactory::setConfig($transportName, $transportConfig);
+} else {
+    Email::setConfigTransport($transportName, $transportConfig);
+}
+Email::setConfig('default', ['transport' => $transportName, 'log' => true]);
+
+Configure::write('pluginsToLoad', ['DatabaseBackup']);
 
 ini_set('intl.default_locale', 'en_US');
