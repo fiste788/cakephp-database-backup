@@ -10,7 +10,7 @@
         }],
     "require": {
         "php": ">=5.5.9",
-        "cakephp/cakephp": "^3.5",
+        "cakephp/cakephp": "^3.5.1",
         "cakephp/chronos": "^1.0.1",
         "mirko-pagliai/php-tools": ">=1.2.8 <1.3"
     },
