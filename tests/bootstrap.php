@@ -95,12 +95,6 @@ Cache::config([
     ],
 ]);
 
-if (version_compare(Configure::version(), '3.4.13', '>=')) {
-    $sqliteUrl = 'sqlite:///' . TMP . 'example.sq3';
-} else {
-    $sqliteUrl = 'sqlite:\\' . TMP . 'example.sq3';
-}
-
 if (!getenv('db_dsn')) {
     putenv('db_dsn=mysql://travis@localhost/test');
 }
